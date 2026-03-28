@@ -190,12 +190,13 @@ struct PlayerView: View {
                         versionCountFor: { vm.versionCount(for: $0) },
                         onSetPreferred: { file in
                             Task {
-                                // Find track info for the file
                                 if let t = vm.albums.flatMap(\.tracks).first(where: { $0.file == file }) {
                                     await vm.setPreferredVersion(file: file, title: t.title, artist: t.artist)
+                                    await vm.loadPreferredStickers()
                                 }
                             }
                         },
+                        preferredFiles: vm.preferredFiles,
                         onBack: { selectedAlbum = nil },
                         onToggleFavorite: { track in
                             Task { await vm.toggleFavorite(track: track) }

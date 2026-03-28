@@ -11,12 +11,12 @@ struct TrackRow: View {
     let onPlay: () -> Void
     let onToggleFavorite: () -> Void
     let onPlayFile: (String) -> Void
-    let onSetPreferred: ((String) -> Void)?  // set preferred version by file
+    let onSetPreferred: ((String) -> Void)?
+    let preferredFiles: Set<String>  // files marked as preferred
     var onEnqueue: (() -> Void)? = nil
 
     @State private var showVersions = false
     @State private var showDRComparison = false
-    @State private var preferredFile: String? = nil
 
     var body: some View {
         HStack(spacing: 8) {
@@ -186,6 +186,10 @@ struct TrackRow: View {
                                 Text("DR\(dr)")
                                     .font(.caption2.bold().monospaced())
                                     .foregroundColor(drColor(dr))
+                            } else {
+                                Text("DR?")
+                                    .font(.caption2.monospaced())
+                                    .foregroundStyle(.quaternary)
                             }
                             // Quality score
                             Text("\(item.score.total)pts")
@@ -226,7 +230,7 @@ struct TrackRow: View {
     }
 
     private func isPreferred(_ t: Track) -> Bool {
-        preferredFile == t.file
+        preferredFiles.contains(t.file)
     }
 
     private func badgeColor(_ badge: AudioQualityScore.Badge) -> Color {
