@@ -1,5 +1,6 @@
 .build/
 .claude/
+dist/
 .swiftpm/
 *.xcodeproj
 xcuserdata/
