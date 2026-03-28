@@ -156,7 +156,7 @@ extension MPDClient {
 
     func findSticker(name: String) async throws -> [String: String] {
         // Returns all URIs that have this sticker
-        let lines = try await send("sticker find song \"/\" \"\(name)\"")
+        let lines = try await send("sticker find song \"\" \"\(name)\"")
         var result: [String: String] = [:]
         var currentFile = ""
         for line in lines {
