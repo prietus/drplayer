@@ -105,65 +105,123 @@ struct TrackRow: View {
     }
 
     private func versionsPopover(_ versions: [TrackVersion]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Otras versiones")
+        // Include current track in ranking
+        let allVersions = [(track: track, album: allAlbums.first(where: { $0.tracks.contains(where: { $0.file == track.file }) }) ?? Album(id: "", title: track.album, artist: track.artist, folder: "", date: "", originalDate: "", label: "", musicbrainzAlbumId: "", genres: []))]
+            + versions.map { (track: $0.track, album: $0.album) }
+        let ranked = AudioQualityScore.rankVersions(allVersions)
+
+        return VStack(alignment: .leading, spacing: 0) {
+            Text("Comparar versiones")
                 .font(.headline)
                 .padding(.bottom, 8)
 
-            ForEach(versions) { version in
+            ForEach(Array(ranked.enumerated()), id: \.offset) { idx, item in
+                let isCurrentTrack = item.track.file == track.file
+
                 HStack(spacing: 8) {
-                    Button {
-                        onPlayFile(version.track.file)
-                    } label: {
-                        Image(systemName: "play.circle.fill")
-                            .font(.title3)
+                    // Badge
+                    Image(systemName: item.score.badge.rawValue)
+                        .font(.caption)
+                        .foregroundColor(badgeColor(item.score.badge))
+                        .frame(width: 16)
+
+                    // Play button (not for current track)
+                    if !isCurrentTrack {
+                        Button {
+                            onPlayFile(item.track.file)
+                        } label: {
+                            Image(systemName: "play.circle.fill")
+                                .font(.callout)
+                                .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Image(systemName: "speaker.wave.2.fill")
+                            .font(.caption)
                             .foregroundColor(.accentColor)
+                            .frame(width: 18)
                     }
-                    .buttonStyle(.plain)
-                    .help("Reproducir esta version")
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(version.album.title)
-                            .font(.callout)
-                            .lineLimit(1)
+                        HStack(spacing: 4) {
+                            Text(item.album.title)
+                                .font(.callout)
+                                .fontWeight(item.isBest ? .bold : .regular)
+                                .lineLimit(1)
+                            if item.isBest {
+                                Text("MEJOR")
+                                    .font(.system(size: 8, weight: .heavy))
+                                    .foregroundColor(.green)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(Capsule().fill(.green.opacity(0.15)))
+                            }
+                            if isCurrentTrack {
+                                Text("ACTUAL")
+                                    .font(.system(size: 8, weight: .heavy))
+                                    .foregroundColor(.blue)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(Capsule().fill(.blue.opacity(0.15)))
+                            }
+                        }
                         HStack(spacing: 6) {
-                            if !version.format.isEmpty {
-                                Text(version.format)
+                            // Format badge
+                            if !item.album.format.isEmpty {
+                                Text(item.album.format)
                                     .font(.caption2.monospaced().bold())
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
-                                    .background(RoundedRectangle(cornerRadius: 3).fill(.blue.opacity(0.15)))
-                                    .foregroundColor(.blue)
+                                    .background(RoundedRectangle(cornerRadius: 3).fill(formatColor(item.album.format).opacity(0.15)))
+                                    .foregroundColor(formatColor(item.album.format))
                             }
-                            if !version.album.date.isEmpty {
-                                Text(version.album.date)
+                            if !item.album.date.isEmpty {
+                                Text(item.album.date)
                                     .font(.caption2)
                                     .foregroundStyle(.tertiary)
                             }
-                            if let dr = version.track.dr, dr > 0 {
+                            if let dr = item.track.dr, dr > 0 {
                                 Text("DR\(dr)")
                                     .font(.caption2.bold().monospaced())
                                     .foregroundColor(drColor(dr))
                             }
-                            if version.track.duration > 0 {
-                                let mins = Int(version.track.duration) / 60
-                                let secs = Int(version.track.duration) % 60
-                                Text(String(format: "%d:%02d", mins, secs))
-                                    .font(.caption2.monospaced())
-                                    .foregroundStyle(.tertiary)
-                            }
+                            // Quality score
+                            Text("\(item.score.total)pts")
+                                .font(.system(size: 9, weight: .medium).monospaced())
+                                .foregroundStyle(.quaternary)
                         }
                     }
                 }
                 .padding(.vertical, 4)
+                .padding(.horizontal, 4)
+                .background(item.isBest ? Color.green.opacity(0.05) :
+                           item.score.badge == .warning ? Color.red.opacity(0.03) : Color.clear)
+                .cornerRadius(4)
 
-                if version.id != versions.last?.id {
+                if idx < ranked.count - 1 {
                     Divider()
                 }
             }
         }
         .padding(12)
-        .frame(minWidth: 280, maxWidth: 360)
+        .frame(minWidth: 320, maxWidth: 420)
+    }
+
+    private func badgeColor(_ badge: AudioQualityScore.Badge) -> Color {
+        switch badge {
+        case .best: return .green
+        case .good: return .secondary
+        case .warning: return .orange
+        }
+    }
+
+    private func formatColor(_ format: String) -> Color {
+        let f = format.uppercased()
+        if f.contains("DSF") || f.contains("DFF") || f.contains("DSD") { return .green }
+        if f.contains("FLAC") || f.contains("WAV") || f.contains("AIFF") { return .blue }
+        if f.contains("MQA") { return .purple }
+        if f.contains("MP3") || f.contains("AAC") { return .orange }
+        return .secondary
     }
 
     // MARK: - Version matching
