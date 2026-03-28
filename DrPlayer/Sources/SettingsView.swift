@@ -9,7 +9,7 @@ struct SettingsView: View {
                 }
             MusicSourcesTab()
                 .tabItem {
-                    Label("Fuentes", systemImage: "folder.badge.plus")
+                    Label("Sources", systemImage: "folder.badge.plus")
                 }
             AudioOutputsTab()
                 .tabItem {
@@ -39,11 +39,11 @@ private struct GeneralTab: View {
 
     var body: some View {
         Form {
-            Section("Biblioteca de musica") {
+            Section("Music library") {
                 HStack {
                     TextField("music_directory", text: $musicPath)
                         .textFieldStyle(.roundedBorder)
-                    Button("Elegir...") {
+                    Button("Choose...") {
                         chooseFolder()
                     }
                 }
@@ -51,23 +51,23 @@ private struct GeneralTab: View {
                     AppSettings.shared.musicLibraryPath = musicPath
                 }
                 if let conf = detectedConf {
-                    Text("Auto-detectado desde \(conf)")
+                    Text("Auto-detected from \(conf)")
                         .font(.caption)
                         .foregroundStyle(.green)
                 } else {
-                    Text("Directorio music_directory de mpd.conf")
+                    Text("music_directory from mpd.conf")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
             }
 
-            Section("Conexion MPD") {
+            Section("MPD Connection") {
                 TextField("Host", text: $mpdHost)
                     .textFieldStyle(.roundedBorder)
                     .onChange(of: mpdHost) {
                         AppSettings.shared.mpdHost = mpdHost
                     }
-                TextField("Puerto", text: $mpdPort)
+                TextField("Port", text: $mpdPort)
                     .textFieldStyle(.roundedBorder)
                     .onChange(of: mpdPort) {
                         if let port = Int(mpdPort), port > 0, port <= 65535 {
@@ -76,7 +76,7 @@ private struct GeneralTab: View {
                     }
 
                 HStack {
-                    Button("Probar conexion") {
+                    Button("Test connection") {
                         testConnection()
                     }
                     if let result = testResult {
@@ -84,7 +84,7 @@ private struct GeneralTab: View {
                         case .success:
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
-                            Text("Conectado")
+                            Text("Connected")
                                 .font(.caption)
                                 .foregroundColor(.green)
                         case .failure(let msg):
@@ -98,7 +98,7 @@ private struct GeneralTab: View {
                 }
             }
 
-            Section("APIs externas") {
+            Section("External APIs") {
                 HStack {
                     Text("Last.fm API Key")
                         .frame(width: 120, alignment: .trailing)
@@ -108,7 +108,7 @@ private struct GeneralTab: View {
                             AppSettings.shared.lastfmApiKey = lastfmKey
                         }
                 }
-                Text("Obtener en last.fm/api/account/create — enriquece datos de artistas")
+                Text("Get at last.fm/api/account/create — enriches artist data")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
 
@@ -132,7 +132,7 @@ private struct GeneralTab: View {
                             AppSettings.shared.discogsSecret = discogsSecret
                         }
                 }
-                Text("Obtener en discogs.com/settings/developers — datos de ediciones fisicas")
+                Text("Get at discogs.com/settings/developers — physical edition data")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -150,7 +150,7 @@ private struct GeneralTab: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Seleccionar"
+        panel.prompt = "Select"
         if panel.runModal() == .OK, let url = panel.url {
             musicPath = url.path
         }
@@ -165,11 +165,11 @@ private struct GeneralTab: View {
             do {
                 let status = try await client.status()
                 await MainActor.run {
-                    testResult = status["state"] != nil ? .success : .failure("Respuesta inesperada")
+                    testResult = status["state"] != nil ? .success : .failure("Unexpected response")
                 }
             } catch {
                 await MainActor.run {
-                    testResult = .failure("No se pudo conectar")
+                    testResult = .failure("Could not connect")
                 }
             }
         }
@@ -184,9 +184,9 @@ private struct MusicSourcesTab: View {
 
     var body: some View {
         Form {
-            Section("Fuentes de musica") {
+            Section("Music sources") {
                 if sources.isEmpty {
-                    Text("No hay fuentes configuradas en \(AppSettings.shared.musicLibraryPath)")
+                    Text("No sources configured in \(AppSettings.shared.musicLibraryPath)")
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 4)
                 } else {
@@ -198,7 +198,7 @@ private struct MusicSourcesTab: View {
 
             Section {
                 HStack {
-                    Button("Añadir fuente...") {
+                    Button("Add source...") {
                         addSource()
                     }
 
@@ -211,7 +211,7 @@ private struct MusicSourcesTab: View {
                     }
                 }
 
-                Text("Las fuentes se enlazan como symlinks dentro del music_directory de MPD. Al añadir o quitar fuentes se ejecuta 'mpd update'.")
+                Text("Sources are linked as symlinks inside MPD's music_directory. Adding or removing sources triggers 'mpd update'.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -240,7 +240,7 @@ private struct MusicSourcesTab: View {
                     .foregroundColor(.red)
             }
             .buttonStyle(.plain)
-            .help("Quitar fuente (solo elimina el symlink, no los archivos)")
+            .help("Remove source (only deletes the symlink, not the files)")
         }
     }
 
@@ -250,8 +250,8 @@ private struct MusicSourcesTab: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Añadir fuente"
-        panel.message = "Selecciona una carpeta con musica para enlazar en MPD"
+        panel.prompt = "Add source"
+        panel.message = "Select a folder with music to link in MPD"
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
@@ -297,13 +297,13 @@ private struct AudioOutputsTab: View {
 
     var body: some View {
         Form {
-            Section("Salidas de audio") {
+            Section("Audio outputs") {
                 if loading {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding()
                 } else if outputs.isEmpty {
-                    Text("No se encontraron salidas de audio en MPD")
+                    Text("No audio outputs found in MPD")
                         .foregroundStyle(.secondary)
                         .padding()
                 } else {
@@ -314,7 +314,7 @@ private struct AudioOutputsTab: View {
             }
 
             Section {
-                Text("Las salidas se definen en mpd.conf. Desde aqui solo se pueden activar o desactivar.")
+                Text("Outputs are defined in mpd.conf. From here you can only enable or disable them.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }

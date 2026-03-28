@@ -32,7 +32,7 @@ struct ArtistListView: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.tertiary)
-                TextField("Buscar artistas...", text: $searchText)
+                TextField("Search artists...", text: $searchText)
                     .textFieldStyle(.plain)
                 if !searchText.isEmpty {
                     Button { searchText = "" } label: {
@@ -41,7 +41,7 @@ struct ArtistListView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                Text("\(filteredArtists.count) artistas")
+                Text("\(filteredArtists.count) artists")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -66,7 +66,7 @@ struct ArtistListView: View {
                                     Text(artist.name)
                                         .font(.callout.weight(.medium))
                                         .foregroundStyle(.primary)
-                                    Text("\(artist.albumCount) albumes · \(artist.trackCount) pistas")
+                                    Text("\(artist.albumCount) albums · \(artist.trackCount) tracks")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -147,7 +147,7 @@ private struct ArtistDetailPanel: View {
                 Button(action: onBack) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
-                        Text("Artistas").font(.caption)
+                        Text("Artists").font(.caption)
                     }
                 }
                 .buttonStyle(.plain)
@@ -164,7 +164,7 @@ private struct ArtistDetailPanel: View {
                     if loading {
                         HStack {
                             ProgressView().controlSize(.small)
-                            Text("Cargando info...").font(.caption).foregroundStyle(.secondary)
+                            Text("Loading...").font(.caption).foregroundStyle(.secondary)
                         }
                         .padding(.horizontal)
                     } else {
@@ -181,7 +181,7 @@ private struct ArtistDetailPanel: View {
                     Divider().padding(.horizontal).padding(.top, 12)
 
                     // Discography
-                    Text("Discografia (\(artist.albumCount) albumes)")
+                    Text("Discography (\(artist.albumCount) albums)")
                         .font(.headline)
                         .padding(.horizontal)
                         .padding(.top, 12)
@@ -237,7 +237,7 @@ private struct ArtistDetailPanel: View {
                         if !mb.type.isEmpty { metaChip(mb.type, icon: "person.fill") }
                         if !mb.area.isEmpty { metaChip(mb.area, icon: "mappin") }
                         if !mb.beginDate.isEmpty {
-                            let period = mb.endDate.isEmpty ? "desde \(mb.beginDate)" : "\(mb.beginDate) – \(mb.endDate)"
+                            let period = mb.endDate.isEmpty ? "since \(mb.beginDate)" : "\(mb.beginDate) – \(mb.endDate)"
                             metaChip(period, icon: "calendar")
                         }
                     }
@@ -264,7 +264,7 @@ private struct ArtistDetailPanel: View {
                 if let lfm = lastfm {
                     HStack(spacing: 12) {
                         if !lfm.listeners.isEmpty {
-                            Label(formatNumber(lfm.listeners) + " oyentes", systemImage: "headphones")
+                            Label(formatNumber(lfm.listeners) + " listeners", systemImage: "headphones")
                                 .font(.caption).foregroundStyle(.tertiary)
                         }
                         if !lfm.playcount.isEmpty {
@@ -338,14 +338,14 @@ private struct ArtistDetailPanel: View {
         VStack(alignment: .leading, spacing: 12) {
             // Biography
             if let wiki = wikiSummary {
-                infoBlock(title: "Biografia") {
+                infoBlock(title: "Biography") {
                     Text(wiki.extract)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     sourceLabel("Wikipedia")
                 }
             } else if let lfm = lastfm, !lfm.summary.isEmpty {
-                infoBlock(title: "Biografia") {
+                infoBlock(title: "Biography") {
                     Text(lfm.summary)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -355,7 +355,7 @@ private struct ArtistDetailPanel: View {
 
             // Members
             if let mb = mbInfo, !mb.members.isEmpty {
-                infoBlock(title: "Miembros") {
+                infoBlock(title: "Members") {
                     ForEach(mb.members, id: \.name) { member in
                         HStack(spacing: 4) {
                             Text(member.name)
@@ -380,7 +380,7 @@ private struct ArtistDetailPanel: View {
 
             // Similar artists
             if let lfm = lastfm, !lfm.similarArtists.isEmpty {
-                infoBlock(title: "Artistas similares") {
+                infoBlock(title: "Similar artists") {
                     Text(lfm.similarArtists.joined(separator: " · "))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -403,32 +403,32 @@ private struct ArtistDetailPanel: View {
 
     private var libraryStatsSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("En tu biblioteca")
+            Text("In your library")
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
 
             Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 4) {
                 GridRow {
-                    statLabel("Albumes")
+                    statLabel("Albums")
                     Text("\(artist.albumCount)").font(.caption).foregroundStyle(.secondary)
                 }
                 GridRow {
-                    statLabel("Pistas")
+                    statLabel("Tracks_label")
                     Text("\(artist.trackCount)").font(.caption).foregroundStyle(.secondary)
                 }
                 GridRow {
-                    statLabel("Duracion total")
+                    statLabel("Total duration")
                     Text(formatDuration(totalDuration)).font(.caption).foregroundStyle(.secondary)
                 }
                 if !dateRange.isEmpty {
                     GridRow {
-                        statLabel("Periodo")
+                        statLabel("Period")
                         Text(dateRange).font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 if !formats.isEmpty {
                     GridRow {
-                        statLabel("Formatos")
+                        statLabel("Formats")
                         Text(formats.joined(separator: ", "))
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
@@ -436,7 +436,7 @@ private struct ArtistDetailPanel: View {
                 }
                 if let dr = avgDR {
                     GridRow {
-                        statLabel("DR medio")
+                        statLabel("Average DR")
                         HStack(spacing: 4) {
                             Text("DR\(dr)")
                                 .font(.caption.bold().monospaced())
@@ -479,7 +479,7 @@ private struct ArtistDetailPanel: View {
     // MARK: - Helpers
 
     private func sourceLabel(_ source: String) -> some View {
-        Text("Fuente: \(source)")
+        Text("Source: \(source)")
             .font(.caption2)
             .foregroundStyle(.quaternary)
             .italic()

@@ -28,15 +28,15 @@ struct LyricsView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Letras")
+                Text("Lyrics")
                     .font(.headline)
                 Spacer()
                 if !syncedLines.isEmpty {
-                    Text("sincronizadas")
+                    Text("Synced")
                         .font(.caption2)
                         .foregroundStyle(.green)
                 } else if plainLyrics != nil {
-                    Text("sin sincronizar")
+                    Text("Unsynced")
                         .font(.caption2)
                         .foregroundStyle(.orange)
                 }
@@ -70,7 +70,7 @@ struct LyricsView: View {
                     Image(systemName: "text.badge.xmark")
                         .font(.system(size: 32))
                         .foregroundStyle(.tertiary)
-                    Text("Sin letras disponibles")
+                    Text("No lyrics available")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

@@ -13,11 +13,11 @@ struct DRComparisonPopover: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack {
-                Text("Rango Dinamico")
+                Text("Dynamic Range")
                     .font(.headline)
                 Spacer()
                 HStack(spacing: 4) {
-                    Text("Tu version:")
+                    Text("Your version:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text("DR\(myDR)")
@@ -30,22 +30,22 @@ struct DRComparisonPopover: View {
             if loading {
                 HStack {
                     ProgressView().controlSize(.small)
-                    Text("Consultando Loudness War DB...")
+                    Text("Querying Loudness War DB...")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 20)
             } else if entries.isEmpty {
-                Text("No se encontraron datos en Loudness War DB para este album")
+                Text("No data found in Loudness War DB for this album")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 12)
             } else {
                 // Column headers
                 HStack(spacing: 0) {
-                    Text("Edicion")
+                    Text("Edition")
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Text("Año")
+                    Text("Year")
                         .frame(width: 40, alignment: .center)
                     Text("DR")
                         .frame(width: 35, alignment: .center)
@@ -55,7 +55,7 @@ struct DRComparisonPopover: View {
                         .frame(width: 30, alignment: .center)
                     Text("Codec")
                         .frame(width: 55, alignment: .center)
-                    Text("Fuente")
+                    Text("Source")
                         .frame(width: 65, alignment: .trailing)
                 }
                 .font(.caption2.bold())
@@ -77,7 +77,7 @@ struct DRComparisonPopover: View {
 
             // Footer
             HStack {
-                Text("Fuente: dr.loudness-war.info")
+                Text("Source: dr.loudness-war.info")
                     .font(.caption2)
                     .foregroundStyle(.quaternary)
                     .italic()
@@ -88,7 +88,7 @@ struct DRComparisonPopover: View {
                         NSWorkspace.shared.open(url)
                     }
                 } label: {
-                    Text("Abrir en web")
+                    Text("Open in browser")
                         .font(.caption2)
                         .foregroundStyle(.blue)
                 }

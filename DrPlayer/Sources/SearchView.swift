@@ -32,7 +32,7 @@ struct SearchView: View {
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.tertiary)
-                    TextField("Buscar artistas, álbumes, pistas...", text: $searchText)
+                    TextField("Search artists, albums, tracks...", text: $searchText)
                         .textFieldStyle(.plain)
                         .font(.title3)
                         .focused($searchFocused)
@@ -61,7 +61,7 @@ struct SearchView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 40))
                         .foregroundStyle(.tertiary)
-                    Text("Escribe para buscar")
+                    Text("Type to search")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -72,7 +72,7 @@ struct SearchView: View {
                 Spacer()
             } else if results.albums.isEmpty && results.artists.isEmpty && results.tracks.isEmpty {
                 Spacer()
-                Text("Sin resultados para \"\(searchText)\"")
+                Text("No results for \"\(searchText)\"")
                     .foregroundStyle(.secondary)
                 Spacer()
             } else {
@@ -80,7 +80,7 @@ struct SearchView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         // Artists
                         if !results.artists.isEmpty {
-                            sectionHeader("Artistas", count: results.artists.count)
+                            sectionHeader("Artists", count: results.artists.count)
                             ForEach(results.artists.prefix(10), id: \.name) { artist in
                                 artistRow(artist)
                             }
@@ -88,7 +88,7 @@ struct SearchView: View {
 
                         // Albums
                         if !results.albums.isEmpty {
-                            sectionHeader("Álbumes", count: results.albums.count)
+                            sectionHeader("Albums", count: results.albums.count)
                             ForEach(results.albums.prefix(20), id: \.id) { album in
                                 albumRow(album)
                             }
@@ -96,7 +96,7 @@ struct SearchView: View {
 
                         // Tracks
                         if !results.tracks.isEmpty {
-                            sectionHeader("Pistas", count: results.tracks.count)
+                            sectionHeader("Tracks", count: results.tracks.count)
                             ForEach(results.tracks.prefix(30), id: \.id) { track in
                                 trackRow(track)
                             }
@@ -205,7 +205,7 @@ struct SearchView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(artist.name)
                     .fontWeight(.medium)
-                Text("\(artist.albumCount) álbumes · \(artist.trackCount) pistas")
+                Text("\(artist.albumCount) albums · \(artist.trackCount) tracks")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

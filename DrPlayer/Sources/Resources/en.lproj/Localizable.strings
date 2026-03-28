@@ -1,0 +1,169 @@
+/* Navigation */
+"Library" = "Library";
+"Artists" = "Artists";
+"Tracks" = "Tracks";
+"Composers" = "Composers";
+"Albums" = "Albums";
+"Back" = "Back";
+"Search" = "Search";
+
+/* Player */
+"Play" = "Play";
+"Pause" = "Pause";
+"Stop" = "Stop";
+"Add to queue" = "Add to queue";
+"Radio" = "Radio";
+"Queue (%d tracks)" = "Queue (%d tracks)";
+"Lyrics" = "Lyrics";
+"Synced" = "Synced";
+"Unsynced" = "Unsynced";
+"Instrumental" = "Instrumental";
+"No lyrics available" = "No lyrics available";
+
+/* Album Detail */
+"Duration" = "Duration";
+"Tracks_label" = "Tracks";
+"Format" = "Format";
+"Dynamic Range" = "Dynamic Range";
+"Images" = "Images";
+"Other editions" = "Other editions";
+"Artwork (%d images)" = "Artwork (%d images)";
+"%d tracks" = "%d tracks";
+"%d albums" = "%d albums";
+
+/* Album Info */
+"Loading..." = "Loading...";
+"About the album" = "About the album";
+"About %@" = "About %@";
+"Details" = "Details";
+"Release (MusicBrainz)" = "Release (MusicBrainz)";
+"Physical edition (Discogs)" = "Physical edition (Discogs)";
+"Credits" = "Credits";
+"Members" = "Members";
+"No additional information" = "No additional information";
+"Read more on Wikipedia" = "Read more on Wikipedia";
+"Source: %@" = "Source: %@";
+
+/* Release Details */
+"Label" = "Label";
+"Catalog" = "Catalog";
+"Date" = "Date";
+"Country" = "Country";
+"Barcode" = "Barcode";
+"Status" = "Status";
+"Genres" = "Genres";
+"Year" = "Year";
+"Styles" = "Styles";
+"Min. price" = "Min. price";
+"View on Discogs" = "View on Discogs";
+
+/* Artist */
+"Search artists..." = "Search artists...";
+"%d artists" = "%d artists";
+"%d albums · %d tracks" = "%d albums · %d tracks";
+"Discography (%d albums)" = "Discography (%d albums)";
+"Similar artists" = "Similar artists";
+"Biography" = "Biography";
+"In your library" = "In your library";
+"Total duration" = "Total duration";
+"Period" = "Period";
+"Formats" = "Formats";
+"Average DR" = "Average DR";
+"Performers" = "Performers";
+"since %@" = "since %@";
+
+/* Composer */
+"Search composers..." = "Search composers...";
+"%d composers" = "%d composers";
+"Compositions (%d tracks)" = "Compositions (%d tracks)";
+
+/* Track Detail */
+"Codec" = "Codec";
+"Sample Rate" = "Sample Rate";
+"Bit Depth" = "Bit Depth";
+"Sample Format" = "Sample Format";
+"Channels" = "Channels";
+"Bitrate" = "Bitrate";
+"Path" = "Path";
+"Size" = "Size";
+"File" = "File";
+"Audio" = "Audio";
+"Tags" = "Tags";
+"Other versions (%d)" = "Other versions (%d)";
+
+/* Track List */
+"Search tracks..." = "Search tracks...";
+"Title" = "Title";
+"Artist" = "Artist";
+"Album" = "Album";
+"Composer" = "Composer";
+"Dur." = "Dur.";
+"Sort" = "Sort";
+
+/* Version Comparison */
+"Compare versions" = "Compare versions";
+"BEST" = "BEST";
+"PREFERRED" = "PREFERRED";
+"CURRENT" = "CURRENT";
+"Mark as preferred version" = "Mark as preferred version";
+
+/* DR Comparison */
+"Dynamic Range" = "Dynamic Range";
+"Your version:" = "Your version:";
+"Querying Loudness War DB..." = "Querying Loudness War DB...";
+"No data found in Loudness War DB for this album" = "No data found in Loudness War DB for this album";
+"Edition" = "Edition";
+"Min" = "Min";
+"Max" = "Max";
+"Open in browser" = "Open in browser";
+
+/* Signal Path */
+"Signal path" = "Signal path";
+"Bitperfect" = "Bitperfect";
+"Origin" = "Origin";
+"No processing" = "No processing";
+"Active processing" = "Active processing";
+"Output" = "Output";
+"No active output" = "No active output";
+"no mixer" = "no mixer";
+
+/* Settings */
+"Configure DrPlayer" = "Configure DrPlayer";
+"Configuration detected at %@" = "Configuration detected at %@";
+"Music library" = "Music library";
+"MPD Connection" = "MPD Connection";
+"Music sources" = "Music sources";
+"Audio outputs" = "Audio outputs";
+"Test connection" = "Test connection";
+"Connected" = "Connected";
+"Choose..." = "Choose...";
+"Generate mpd.conf" = "Generate mpd.conf";
+"Start" = "Start";
+"Verify again" = "Verify again";
+"not found" = "not found";
+"Add source..." = "Add source...";
+"External APIs" = "External APIs";
+
+/* Background Tasks */
+"Background tasks" = "Background tasks";
+"Genre enrichment" = "Genre enrichment";
+"Processing %d/%d albums..." = "Processing %d/%d albums...";
+"Completed · %d albums cached" = "Completed · %d albums cached";
+"DR14 analysis" = "DR14 analysis";
+"On demand · %d tracks cached" = "On demand · %d tracks cached";
+"Waveforms" = "Waveforms";
+"Cache" = "Cache";
+"Active · auto-continue when queue ends" = "Active · auto-continue when queue ends";
+"%d outputs · polling every 10s" = "%d outputs · polling every 10s";
+
+/* First Run */
+"Prerequisites" = "Prerequisites";
+"MPD Configuration" = "MPD Configuration";
+"Connection" = "Connection";
+"Install missing dependencies with Homebrew:" = "Install missing dependencies with Homebrew:";
+"mpd.conf detected" = "mpd.conf detected";
+"mpd.conf not found" = "mpd.conf not found";
+"Created at ~/.mpd/mpd.conf" = "Created at ~/.mpd/mpd.conf";
+"Generates a basic bitperfect config at ~/.mpd/mpd.conf" = "Generates a basic bitperfect config at ~/.mpd/mpd.conf";
+"No sources. You can add them now or later in Settings." = "No sources. You can add them now or later in Settings.";
+"Creates symlinks in the music_directory pointing to your music folders" = "Creates symlinks in the music_directory pointing to your music folders";

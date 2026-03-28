@@ -14,10 +14,10 @@ struct PlayerView: View {
     @State private var browseMode: BrowseMode = .albums
 
     enum BrowseMode: String, CaseIterable {
-        case albums = "Albumes"
-        case artists = "Artistas"
-        case tracks = "Pistas"
-        case composers = "Compositores"
+        case albums = "Albums"
+        case artists = "Artists"
+        case tracks = "Tracks"
+        case composers = "Composers"
     }
 
     private var filteredAlbums: [Album] {
@@ -49,7 +49,7 @@ struct PlayerView: View {
                         Button {
                             Task { await vm.loadLibrary() }
                         } label: {
-                            Label("Cargar biblioteca", systemImage: "arrow.down.circle")
+                            Label("Load library", systemImage: "arrow.down.circle")
                         }
                         .buttonStyle(.borderedProminent)
                         Spacer()
@@ -411,19 +411,19 @@ struct NowPlayingBar: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(showSearch ? .accentColor : .primary)
                 }
-                .help("Buscar")
+                .help("Search")
 
                 Button { showLyrics.toggle() } label: {
                     Image(systemName: "quote.bubble")
                         .foregroundColor(showLyrics ? .accentColor : .primary)
                 }
-                .help("Letras")
+                .help("Lyrics")
 
                 Button { showQueue.toggle() } label: {
                     Image(systemName: "list.bullet")
                         .foregroundColor(showQueue ? .accentColor : .primary)
                 }
-                .help("Cola de reproducción (\(vm.playlist.count) pistas)")
+                .help("Play queue (\(vm.playlist.count) tracks)")
 
                 Button {
                     if vm.radioEnabled {
@@ -435,7 +435,7 @@ struct NowPlayingBar: View {
                     Image(systemName: "antenna.radiowaves.left.and.right")
                         .foregroundColor(vm.radioEnabled ? .green : .primary)
                 }
-                .help(vm.radioEnabled ? "Radio activa — click para desactivar" : "Iniciar radio basada en lo que suena")
+                .help(vm.radioEnabled ? "Radio active — click to disable" : "Start radio based on current track")
 
                 BackgroundTasksIndicator(vm: vm)
             }

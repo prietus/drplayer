@@ -25,7 +25,7 @@ struct BackgroundTasksIndicator: View {
             }
         }
         .buttonStyle(.plain)
-        .help("Tareas en segundo plano")
+        .help("Background tasks")
         .popover(isPresented: $showPopover, arrowEdge: .bottom) {
             BackgroundTasksPopover(vm: vm)
         }
@@ -38,13 +38,13 @@ private struct BackgroundTasksPopover: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Tareas en segundo plano")
+            Text("Background tasks")
                 .font(.headline)
 
             // Genre enrichment
             taskRow(
                 icon: "tag",
-                title: "Enriquecimiento de generos",
+                title: "Genre enrichment",
                 status: genreStatus,
                 isActive: vm.genreEnrichRunning,
                 progress: genreProgress
@@ -55,8 +55,8 @@ private struct BackgroundTasksPopover: View {
             // DR14 cache
             taskRow(
                 icon: "waveform",
-                title: "Analisis DR14",
-                status: "Bajo demanda · \(vm.dr14CacheCount) tracks cacheados",
+                title: "DR14 analysis",
+                status: "On demand · \(vm.dr14CacheCount) tracks cached",
                 isActive: false,
                 progress: nil
             )
@@ -67,7 +67,7 @@ private struct BackgroundTasksPopover: View {
             taskRow(
                 icon: "waveform.path",
                 title: "Waveforms",
-                status: "Bajo demanda · \(vm.waveformCacheCount) tracks cacheados",
+                status: "On demand · \(vm.waveformCacheCount) tracks cached",
                 isActive: false,
                 progress: nil
             )
@@ -78,7 +78,7 @@ private struct BackgroundTasksPopover: View {
             taskRow(
                 icon: "hifispeaker",
                 title: "Audio outputs",
-                status: "\(vm.audioOutputs.count) salidas · polling cada 10s",
+                status: "\(vm.audioOutputs.count) outputs · polling every 10s",
                 isActive: vm.connected,
                 progress: nil
             )
@@ -88,7 +88,7 @@ private struct BackgroundTasksPopover: View {
                 taskRow(
                     icon: "antenna.radiowaves.left.and.right",
                     title: "Radio",
-                    status: "Activa · auto-continue al acabar cola",
+                    status: "Active · auto-continue when queue ends",
                     isActive: true,
                     progress: nil
                 )
@@ -113,9 +113,9 @@ private struct BackgroundTasksPopover: View {
     private var genreStatus: String {
         if vm.genreEnrichRunning {
             let (done, total) = vm.genreEnrichProgress
-            return "Procesando \(done)/\(total) albumes..."
+            return "Processing \(done)/\(total) albums..."
         }
-        return "Completado · \(GenreEnricher.cachedCount) albumes cacheados"
+        return "Completed · \(GenreEnricher.cachedCount) albums cached"
     }
 
     private var genreProgress: Double? {

@@ -7,10 +7,10 @@ struct QueueView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Cola")
+                Text("Queue")
                     .font(.headline)
                 Spacer()
-                Text("\(vm.playlist.count) pistas")
+                Text("\(vm.playlist.count) tracks")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Button {
@@ -21,7 +21,7 @@ struct QueueView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Vaciar cola")
+                .help("Clear queue")
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)

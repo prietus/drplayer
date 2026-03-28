@@ -24,7 +24,7 @@ struct AlbumInfoView: View {
             if loading {
                 HStack {
                     ProgressView().controlSize(.small)
-                    Text("Cargando...")
+                    Text("Loading...")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -38,7 +38,7 @@ struct AlbumInfoView: View {
 
                 // Album Wikipedia
                 if let wiki = albumWiki {
-                    wikiSection(title: "Sobre el album", summary: wiki)
+                    wikiSection(title: "About the album", summary: wiki)
                 }
 
                 // Artist Wikipedia (only if different article)
@@ -52,7 +52,7 @@ struct AlbumInfoView: View {
                 if release != nil || discogs != nil || artistInfo != nil {
                     Divider().padding(.vertical, 4)
 
-                    Text("Detalles")
+                    Text("Details")
                         .font(.caption2.bold())
                         .foregroundStyle(.quaternary)
                         .textCase(.uppercase)
@@ -60,34 +60,34 @@ struct AlbumInfoView: View {
 
                 // MusicBrainz release details
                 if let rel = release {
-                    collapsibleSection("Lanzamiento (MusicBrainz)", isExpanded: $showFullRelease) {
+                    collapsibleSection("Release (MusicBrainz)", isExpanded: $showFullRelease) {
                         releaseSection(rel)
                     }
                 }
 
                 // Discogs edition
                 if let dg = discogs {
-                    collapsibleSection("Edicion fisica (Discogs)", isExpanded: $showDiscogs) {
+                    collapsibleSection("Physical edition (Discogs)", isExpanded: $showDiscogs) {
                         discogsSection(dg)
                     }
                 }
 
                 // Credits
                 if let rel = release, !rel.credits.isEmpty {
-                    collapsibleSection("Creditos", isExpanded: $showCredits) {
+                    collapsibleSection("Credits", isExpanded: $showCredits) {
                         creditsSection(rel.credits)
                     }
                 }
 
                 // Band members
                 if let info = artistInfo, !info.members.isEmpty {
-                    collapsibleSection("Miembros", isExpanded: $showMembers) {
+                    collapsibleSection("Members", isExpanded: $showMembers) {
                         membersSection(info)
                     }
                 }
 
                 if release == nil && albumWiki == nil && artistWiki == nil && discogs == nil {
-                    Text("Sin informacion adicional")
+                    Text("No additional information")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -175,7 +175,7 @@ struct AlbumInfoView: View {
                         NSWorkspace.shared.open(url)
                     }
                 } label: {
-                    Text("Leer mas en Wikipedia")
+                    Text("Read more on Wikipedia")
                         .font(.caption2)
                         .foregroundStyle(.blue)
                 }
@@ -189,13 +189,13 @@ struct AlbumInfoView: View {
     private func releaseSection(_ rel: MBRelease) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 3) {
-                if !rel.label.isEmpty { infoRow("Sello", rel.label) }
-                if !rel.catalogNumber.isEmpty { infoRow("Catalogo", rel.catalogNumber) }
-                if !rel.date.isEmpty { infoRow("Fecha", rel.date) }
-                if !rel.country.isEmpty { infoRow("Pais", rel.country) }
-                if !rel.barcode.isEmpty { infoRow("Codigo de barras", rel.barcode) }
-                if !rel.status.isEmpty { infoRow("Estado", rel.status) }
-                if !rel.genres.isEmpty { infoRow("Generos", rel.genres.joined(separator: ", ")) }
+                if !rel.label.isEmpty { infoRow("Label", rel.label) }
+                if !rel.catalogNumber.isEmpty { infoRow("Catalog", rel.catalogNumber) }
+                if !rel.date.isEmpty { infoRow("Date", rel.date) }
+                if !rel.country.isEmpty { infoRow("Country", rel.country) }
+                if !rel.barcode.isEmpty { infoRow("Barcode", rel.barcode) }
+                if !rel.status.isEmpty { infoRow("Status", rel.status) }
+                if !rel.genres.isEmpty { infoRow("Genres", rel.genres.joined(separator: ", ")) }
             }
             sourceLabel("MusicBrainz")
         }
@@ -204,13 +204,13 @@ struct AlbumInfoView: View {
     private func discogsSection(_ dg: DiscogsRelease) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 3) {
-                if !dg.label.isEmpty { infoRow("Sello", dg.label) }
-                if !dg.catalogNumber.isEmpty { infoRow("Catalogo", dg.catalogNumber) }
-                if dg.year > 0 { infoRow("Año", String(dg.year)) }
-                if !dg.country.isEmpty { infoRow("Pais", dg.country) }
-                if !dg.formats.isEmpty { infoRow("Formato", dg.formats.joined(separator: ", ")) }
-                if !dg.styles.isEmpty { infoRow("Estilos", dg.styles.joined(separator: ", ")) }
-                if let price = dg.lowestPrice { infoRow("Precio min.", "$\(price)") }
+                if !dg.label.isEmpty { infoRow("Label", dg.label) }
+                if !dg.catalogNumber.isEmpty { infoRow("Catalog", dg.catalogNumber) }
+                if dg.year > 0 { infoRow("Year", String(dg.year)) }
+                if !dg.country.isEmpty { infoRow("Country", dg.country) }
+                if !dg.formats.isEmpty { infoRow("Format", dg.formats.joined(separator: ", ")) }
+                if !dg.styles.isEmpty { infoRow("Styles", dg.styles.joined(separator: ", ")) }
+                if let price = dg.lowestPrice { infoRow("Min. price", "$\(price)") }
             }
 
             if !dg.notes.isEmpty {
@@ -222,7 +222,7 @@ struct AlbumInfoView: View {
             }
 
             HStack(spacing: 8) {
-                miniLink("Ver en Discogs", url: dg.url)
+                miniLink("View on Discogs", url: dg.url)
             }
             sourceLabel("Discogs")
         }
@@ -256,7 +256,7 @@ struct AlbumInfoView: View {
                             .foregroundStyle(.tertiary)
                     }
                     if !info.beginDate.isEmpty {
-                        Text("· desde \(info.beginDate)")
+                        Text("· since \(info.beginDate)")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -326,7 +326,7 @@ struct AlbumInfoView: View {
     }
 
     private func sourceLabel(_ source: String) -> some View {
-        Text("Fuente: \(source)")
+        Text("Source: \(source)")
             .font(.caption2)
             .foregroundStyle(.quaternary)
             .italic()

@@ -31,7 +31,7 @@ struct SignalPathIndicator: View {
             }
         }
         .buttonStyle(.plain)
-        .help(isBitperfect ? "Bitperfect" : "Ruta de la senal")
+        .help(isBitperfect ? "Bitperfect" : "Signal path")
         .popover(isPresented: $showPopover, arrowEdge: .bottom) {
             SignalPathPopover(vm: vm, isBitperfect: isBitperfect)
         }
@@ -47,7 +47,7 @@ private struct SignalPathPopover: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack {
-                Text("Ruta de senal")
+                Text("Signal path")
                     .font(.headline)
                 Spacer()
                 if isBitperfect {
@@ -66,7 +66,7 @@ private struct SignalPathPopover: View {
                 // Source
                 signalNode(
                     icon: "doc.richtext",
-                    title: "Origen",
+                    title: "Origin",
                     detail: sourceDescription,
                     color: .cyan
                 )
@@ -94,8 +94,8 @@ private struct SignalPathPopover: View {
                 } else {
                     signalNode(
                         icon: "hifispeaker",
-                        title: "Salida",
-                        detail: "Sin salida activa",
+                        title: "Output",
+                        detail: "No active output",
                         color: .gray
                     )
                 }
@@ -172,14 +172,14 @@ private struct SignalPathPopover: View {
         if !vm.bitrate.isEmpty && vm.bitrate != "0" {
             parts.append("\(vm.bitrate) kbps")
         }
-        parts.append(isBitperfect ? "Sin procesado" : "Procesado activo")
+        parts.append(isBitperfect ? "No processing" : "Active processing")
         return parts.joined(separator: " · ")
     }
 
     private func outputDescription(_ output: MPDClient.AudioOutput) -> String {
         var parts: [String] = [output.plugin.uppercased()]
         if output.attributes["mixer_type"] == "none" || output.attributes.isEmpty {
-            parts.append("sin mixer")
+            parts.append("no mixer")
         } else if let mixer = output.attributes["mixer_type"] {
             parts.append("mixer: \(mixer)")
         }

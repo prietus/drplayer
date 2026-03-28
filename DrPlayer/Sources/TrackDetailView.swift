@@ -37,7 +37,7 @@ struct TrackDetailView: View {
                 Divider().padding(.horizontal)
 
                 if loading {
-                    ProgressView("Analizando archivo...")
+                    ProgressView("Loading...")
                         .padding(40)
                         .frame(maxWidth: .infinity)
                 } else if let meta = metadata {
@@ -48,7 +48,7 @@ struct TrackDetailView: View {
                     Divider().padding(.horizontal)
 
                     // File info
-                    sectionTitle("Archivo")
+                    sectionTitle("File")
                     fileSection(meta)
 
                     // Tags
@@ -69,7 +69,7 @@ struct TrackDetailView: View {
                     let versions = findOtherVersions()
                     if !versions.isEmpty {
                         Divider().padding(.horizontal)
-                        sectionTitle("Otras versiones (\(versions.count))")
+                        sectionTitle("Other versions (\(versions.count))")
                         otherVersionsSection(versions)
                     }
                 }
@@ -93,7 +93,7 @@ struct TrackDetailView: View {
                 Button(action: onDismiss) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
-                        Text("Volver")
+                        Text("Back")
                             .font(.caption)
                     }
                 }
@@ -114,13 +114,13 @@ struct TrackDetailView: View {
 
                 HStack(spacing: 10) {
                     Button(action: onPlay) {
-                        Label("Reproducir", systemImage: "play.fill")
+                        Label("Play", systemImage: "play.fill")
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
 
                     Button(action: onEnqueue) {
-                        Label("Añadir a cola", systemImage: "text.badge.plus")
+                        Label("Add to queue", systemImage: "text.badge.plus")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -143,7 +143,7 @@ struct TrackDetailView: View {
 
     private func audioSection(_ meta: TrackMetadata) -> some View {
         Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 6) {
-            metaRow("Códec", meta.codecLong.isEmpty ? meta.codec : meta.codecLong)
+            metaRow("Codec", meta.codecLong.isEmpty ? meta.codec : meta.codecLong)
             if !meta.sampleRate.isEmpty {
                 let sr = Int(meta.sampleRate) ?? 0
                 let display = sr >= 1000 ? String(format: "%.1f kHz", Double(sr) / 1000.0) : "\(sr) Hz"
@@ -155,12 +155,12 @@ struct TrackDetailView: View {
             if !meta.sampleFormat.isEmpty {
                 metaRow("Sample Format", meta.sampleFormat)
             }
-            metaRow("Canales", meta.channelLayout.isEmpty ? "\(meta.channels)" : "\(meta.channels) (\(meta.channelLayout))")
+            metaRow("Channels", meta.channelLayout.isEmpty ? "\(meta.channels)" : "\(meta.channels) (\(meta.channelLayout))")
             if !meta.duration.isEmpty {
                 let secs = Double(meta.duration) ?? 0
                 let mins = Int(secs) / 60
                 let s = Int(secs) % 60
-                metaRow("Duración", String(format: "%d:%02d (%.3fs)", mins, s, secs))
+                metaRow("Duration", String(format: "%d:%02d (%.3fs)", mins, s, secs))
             }
             if !meta.bitrate.isEmpty && meta.bitrate != "0" {
                 let br = Int(meta.bitrate) ?? 0
@@ -172,13 +172,13 @@ struct TrackDetailView: View {
 
     private func fileSection(_ meta: TrackMetadata) -> some View {
         Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 6) {
-            metaRow("Ruta", track.file)
+            metaRow("Path", track.file)
             if !meta.formatName.isEmpty {
-                metaRow("Formato", meta.formatName)
+                metaRow("Format", meta.formatName)
             }
             if !meta.fileSize.isEmpty {
                 let bytes = Int(meta.fileSize) ?? 0
-                metaRow("Tamaño", formatFileSize(bytes))
+                metaRow("Size", formatFileSize(bytes))
             }
         }
         .padding(.horizontal)

@@ -37,7 +37,7 @@ struct ComposerListView: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.tertiary)
-                TextField("Buscar compositores...", text: $searchText)
+                TextField("Search composers...", text: $searchText)
                     .textFieldStyle(.plain)
                 if !searchText.isEmpty {
                     Button { searchText = "" } label: {
@@ -46,7 +46,7 @@ struct ComposerListView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                Text("\(filteredComposers.count) compositores")
+                Text("\(filteredComposers.count) composers")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -72,7 +72,7 @@ struct ComposerListView: View {
                                         .font(.callout.weight(.medium))
                                         .foregroundStyle(.primary)
                                     HStack(spacing: 6) {
-                                        Text("\(composer.trackCount) pistas")
+                                        Text("\(composer.trackCount) tracks")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                         if !composer.genres.isEmpty {
@@ -137,7 +137,7 @@ private struct ComposerDetailPanel: View {
                 Button(action: onBack) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
-                        Text("Compositores").font(.caption)
+                        Text("Composers").font(.caption)
                     }
                 }
                 .buttonStyle(.plain)
@@ -155,7 +155,7 @@ private struct ComposerDetailPanel: View {
                     if loading {
                         HStack {
                             ProgressView().controlSize(.small)
-                            Text("Cargando info...").font(.caption).foregroundStyle(.secondary)
+                            Text("Loading...").font(.caption).foregroundStyle(.secondary)
                         }
                         .padding(.horizontal)
                     } else {
@@ -170,7 +170,7 @@ private struct ComposerDetailPanel: View {
                     Divider().padding(.horizontal).padding(.top, 12)
 
                     // Track list
-                    Text("Composiciones (\(tracks.count) pistas)")
+                    Text("Compositions (\(tracks.count) tracks)")
                         .font(.headline)
                         .padding(.horizontal)
                         .padding(.top, 12)
@@ -232,7 +232,7 @@ private struct ComposerDetailPanel: View {
                             metaChip(mb.area, icon: "mappin")
                         }
                         if !mb.beginDate.isEmpty {
-                            let period = mb.endDate.isEmpty ? "desde \(mb.beginDate)" : "\(mb.beginDate) – \(mb.endDate)"
+                            let period = mb.endDate.isEmpty ? "since \(mb.beginDate)" : "\(mb.beginDate) – \(mb.endDate)"
                             metaChip(period, icon: "calendar")
                         }
                     }
@@ -257,7 +257,7 @@ private struct ComposerDetailPanel: View {
                 if let lfm = lastfm {
                     HStack(spacing: 12) {
                         if !lfm.listeners.isEmpty {
-                            Label(formatNumber(lfm.listeners) + " oyentes", systemImage: "headphones")
+                            Label(formatNumber(lfm.listeners) + " listeners", systemImage: "headphones")
                                 .font(.caption).foregroundStyle(.tertiary)
                         }
                         if !lfm.playcount.isEmpty {
@@ -315,14 +315,14 @@ private struct ComposerDetailPanel: View {
         VStack(alignment: .leading, spacing: 12) {
             // Biography
             if let wiki = wikiSummary {
-                infoBlock(title: "Biografia") {
+                infoBlock(title: "Biography") {
                     Text(wiki.extract)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     sourceLabel("Wikipedia")
                 }
             } else if let lfm = lastfm, !lfm.summary.isEmpty {
-                infoBlock(title: "Biografia") {
+                infoBlock(title: "Biography") {
                     Text(lfm.summary)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -332,7 +332,7 @@ private struct ComposerDetailPanel: View {
 
             // Similar artists
             if let lfm = lastfm, !lfm.similarArtists.isEmpty {
-                infoBlock(title: "Artistas similares") {
+                infoBlock(title: "Similar artists") {
                     Text(lfm.similarArtists.joined(separator: " · "))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -350,7 +350,7 @@ private struct ComposerDetailPanel: View {
     }
 
     private func sourceLabel(_ source: String) -> some View {
-        Text("Fuente: \(source)")
+        Text("Source: \(source)")
             .font(.caption2)
             .foregroundStyle(.quaternary)
             .italic()
@@ -360,26 +360,26 @@ private struct ComposerDetailPanel: View {
 
     private var libraryStats: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("En tu biblioteca")
+            Text("In your library")
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
 
             Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 4) {
                 GridRow {
-                    statLabel("Pistas")
+                    statLabel("Tracks_label")
                     Text("\(tracks.count)").font(.caption).foregroundStyle(.secondary)
                 }
                 GridRow {
-                    statLabel("Albumes")
+                    statLabel("Albums")
                     Text("\(uniqueAlbums)").font(.caption).foregroundStyle(.secondary)
                 }
                 GridRow {
-                    statLabel("Duracion total")
+                    statLabel("Total duration")
                     Text(formatDuration(totalDuration)).font(.caption).foregroundStyle(.secondary)
                 }
                 if !uniqueArtists.isEmpty {
                     GridRow {
-                        statLabel("Interpretes")
+                        statLabel("Performers")
                         Text(uniqueArtists.prefix(5).joined(separator: ", "))
                             .font(.caption).foregroundStyle(.secondary)
                     }

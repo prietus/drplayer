@@ -50,7 +50,7 @@ struct AlbumDetailView: View {
                 Button(action: onBack) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
-                        Text("Biblioteca")
+                        Text("Library")
                             .font(.caption)
                     }
                 }
@@ -118,13 +118,13 @@ struct AlbumDetailView: View {
                 // Action buttons
                 HStack(spacing: 10) {
                     Button(action: onPlayAlbum) {
-                        Label("Reproducir", systemImage: "play.fill")
+                        Label("Play", systemImage: "play.fill")
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.regular)
 
                     Button(action: onEnqueueAlbum) {
-                        Label("Añadir a cola", systemImage: "text.badge.plus")
+                        Label("Add to queue", systemImage: "text.badge.plus")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
@@ -134,7 +134,7 @@ struct AlbumDetailView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
-                    .help("Generar playlist basada en este album")
+                    .help("Generate playlist based on this album")
                 }
                 .padding(.top, 8)
 
@@ -175,7 +175,7 @@ struct AlbumDetailView: View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 4) {
             if !album.formattedDuration.isEmpty {
                 GridRow {
-                    Text("Duración")
+                    Text("Duration")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                     Text(album.formattedDuration)
@@ -184,7 +184,7 @@ struct AlbumDetailView: View {
                 }
             }
             GridRow {
-                Text("Pistas")
+                Text("Tracks_label")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                 Text("\(album.tracks.count)")
@@ -193,7 +193,7 @@ struct AlbumDetailView: View {
             }
             if !album.format.isEmpty {
                 GridRow {
-                    Text("Formato")
+                    Text("Format")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                     Text(album.format)
@@ -203,7 +203,7 @@ struct AlbumDetailView: View {
             }
             if let dr = album.avgDR, dr > 0 {
                 GridRow {
-                    Text("Rango Dinámico")
+                    Text("Dynamic Range")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                     HStack(spacing: 4) {
@@ -216,7 +216,7 @@ struct AlbumDetailView: View {
             }
             if artworkCount > 0 {
                 GridRow {
-                    Text("Imágenes")
+                    Text("Images")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                     Text("\(artworkCount)")
@@ -282,7 +282,7 @@ struct AlbumDetailView: View {
                         .font(.caption2)
                     Image(systemName: "photo.on.rectangle.angled")
                         .font(.caption)
-                    Text("Artwork (\(artworkPaths.count) imágenes)")
+                    Text("Artwork (\(artworkPaths.count) images)")
                         .font(.caption.bold())
                     Spacer()
                 }
@@ -344,7 +344,7 @@ struct AlbumDetailView: View {
 
     private func otherEditionsSection(_ editions: [Album]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Otras ediciones")
+            Text("Other editions")
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
 
@@ -397,7 +397,7 @@ struct AlbumDetailView: View {
                                     .font(.caption2.bold().monospaced())
                                     .foregroundColor(drColor(dr))
                             }
-                            Text("\(edition.tracks.count) pistas")
+                            Text("\(edition.tracks.count) tracks")
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
@@ -413,7 +413,7 @@ struct AlbumDetailView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
-                    .help("Reproducir esta edicion")
+                    .help("Play this edition")
                 }
                 .padding(8)
                 .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)))

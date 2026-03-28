@@ -28,7 +28,7 @@ struct TrackRow: View {
                     .frame(width: 20)
             }
             .buttonStyle(.plain)
-            .help("Reproducir")
+            .help("Play")
 
             // Track number
             trackNumber
@@ -99,7 +99,7 @@ struct TrackRow: View {
                 .background(RoundedRectangle(cornerRadius: 4).fill(.blue.opacity(0.12)))
             }
             .buttonStyle(.plain)
-            .help("Otras versiones de este track")
+            .help("Other versions of this track")
             .popover(isPresented: $showVersions, arrowEdge: .bottom) {
                 versionsPopover(findOtherVersions()) // only computed on click
             }
@@ -113,7 +113,7 @@ struct TrackRow: View {
         let ranked = AudioQualityScore.rankVersions(allVersions)
 
         return VStack(alignment: .leading, spacing: 0) {
-            Text("Comparar versiones")
+            Text("Compare versions")
                 .font(.headline)
                 .padding(.bottom, 8)
 
@@ -145,7 +145,7 @@ struct TrackRow: View {
                                 .fontWeight(item.isBest ? .bold : .regular)
                                 .lineLimit(1)
                             if item.isBest {
-                                Text("MEJOR")
+                                Text("BEST")
                                     .font(.system(size: 8, weight: .heavy))
                                     .foregroundColor(.green)
                                     .padding(.horizontal, 4)
@@ -153,7 +153,7 @@ struct TrackRow: View {
                                     .background(Capsule().fill(.green.opacity(0.15)))
                             }
                             if isPreferred(item.track) {
-                                Text("PREFERIDA")
+                                Text("PREFERRED")
                                     .font(.system(size: 8, weight: .heavy))
                                     .foregroundColor(.secondary)
                                     .padding(.horizontal, 4)
@@ -161,7 +161,7 @@ struct TrackRow: View {
                                     .background(Capsule().fill(.secondary.opacity(0.15)))
                             }
                             if isCurrentTrack {
-                                Text("ACTUAL")
+                                Text("CURRENT")
                                     .font(.system(size: 8, weight: .heavy))
                                     .foregroundColor(.blue)
                                     .padding(.horizontal, 4)
@@ -212,7 +212,7 @@ struct TrackRow: View {
                                 .foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain)
-                        .help("Marcar como version preferida")
+                        .help("Set as preferred version")
                     }
                 }
                 .padding(.vertical, 4)
@@ -326,7 +326,7 @@ struct TrackRow: View {
                     .foregroundColor(.gray)
             }
             .buttonStyle(.plain)
-            .help("Añadir a la cola")
+            .help("Add to queue")
         }
     }
 
@@ -347,7 +347,7 @@ struct TrackRow: View {
                     )
             }
             .buttonStyle(.plain)
-            .help("Comparar DR con otras ediciones en Loudness War DB")
+            .help("Compare DR with other editions on Loudness War DB")
             .popover(isPresented: $showDRComparison, arrowEdge: .bottom) {
                 DRComparisonPopover(
                     artist: track.artist.isEmpty ? track.albumArtist : track.artist,

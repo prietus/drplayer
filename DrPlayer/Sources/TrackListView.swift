@@ -11,11 +11,11 @@ struct TrackListView: View {
     @State private var sortAscending = true
 
     enum SortKey: String, CaseIterable {
-        case title = "Titulo"
-        case artist = "Artista"
+        case title = "Title"
+        case artist = "Artist"
         case album = "Album"
-        case duration = "Duracion"
-        case composer = "Compositor"
+        case duration = "Duration"
+        case composer = "Composer"
     }
 
     private var filteredAndSorted: [Track] {
@@ -58,7 +58,7 @@ struct TrackListView: View {
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.tertiary)
-                    TextField("Buscar pistas...", text: $searchText)
+                    TextField("Search tracks...", text: $searchText)
                         .textFieldStyle(.plain)
                     if !searchText.isEmpty {
                         Button { searchText = "" } label: {
@@ -69,7 +69,7 @@ struct TrackListView: View {
                     }
                 }
 
-                Picker("Ordenar", selection: $sortKey) {
+                Picker("Sort", selection: $sortKey) {
                     ForEach(SortKey.allCases, id: \.self) { key in
                         Text(key.rawValue).tag(key)
                     }
@@ -84,9 +84,9 @@ struct TrackListView: View {
                         .font(.caption)
                 }
                 .buttonStyle(.plain)
-                .help(sortAscending ? "Ascendente" : "Descendente")
+                .help(sortAscending ? "Ascending" : "Descending")
 
-                Text("\(filteredAndSorted.count) pistas")
+                Text("\(filteredAndSorted.count) tracks")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -98,10 +98,10 @@ struct TrackListView: View {
             // Column headers
             HStack(spacing: 0) {
                 Text("").frame(width: 28)  // play button
-                columnHeader("Titulo", key: .title, width: nil, flex: true)
-                columnHeader("Artista", key: .artist, width: 150)
+                columnHeader("Title", key: .title, width: nil, flex: true)
+                columnHeader("Artist", key: .artist, width: 150)
                 columnHeader("Album", key: .album, width: 150)
-                columnHeader("Compositor", key: .composer, width: 120)
+                columnHeader("Composer", key: .composer, width: 120)
                 Text("DR")
                     .font(.caption2.bold())
                     .foregroundStyle(.tertiary)

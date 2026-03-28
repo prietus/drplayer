@@ -37,7 +37,7 @@ struct FirstRunSetupView: View {
                 Image(systemName: "music.note.house")
                     .font(.system(size: 48))
                     .foregroundStyle(.secondary)
-                Text("Configurar DrPlayer")
+                Text("Configure DrPlayer")
                     .font(.title.bold())
             }
             .padding(.top, 20)
@@ -63,7 +63,7 @@ struct FirstRunSetupView: View {
                     case .success:
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
-                        Text("Conectado")
+                        Text("Connected")
                             .font(.caption)
                             .foregroundColor(.green)
                     case .failure(let msg):
@@ -78,12 +78,12 @@ struct FirstRunSetupView: View {
                 Spacer()
 
                 if deps.allSatisfied {
-                    Button("Probar conexion") {
+                    Button("Test connection") {
                         testConnection()
                     }
                     .disabled(testing)
 
-                    Button("Empezar") {
+                    Button("Start") {
                         saveAndComplete()
                     }
                     .buttonStyle(.borderedProminent)
@@ -100,14 +100,14 @@ struct FirstRunSetupView: View {
     // MARK: - Dependencies Section
 
     private var dependenciesSection: some View {
-        Section("1. Prerequisitos") {
+        Section("1. Prerequisites") {
             depRow("mpd", path: deps.mpd)
             depRow("ffmpeg", path: deps.ffmpeg)
             depRow("ffprobe", path: deps.ffprobe)
 
             if !deps.allSatisfied {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Instala las dependencias que faltan con Homebrew:")
+                    Text("Install missing dependencies with Homebrew:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text("brew install \(deps.missing.joined(separator: " "))")
@@ -117,7 +117,7 @@ struct FirstRunSetupView: View {
                         .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.8)))
                         .foregroundColor(.green)
                         .textSelection(.enabled)
-                    Button("Verificar de nuevo") {
+                    Button("Verify again") {
                         deps = AppSettings.checkDependencies()
                     }
                 }
@@ -139,7 +139,7 @@ struct FirstRunSetupView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             } else {
-                Text("no encontrado")
+                Text("not found")
                     .font(.caption)
                     .foregroundColor(.red)
             }
@@ -149,12 +149,12 @@ struct FirstRunSetupView: View {
     // MARK: - mpd.conf Section
 
     private var mpdConfSection: some View {
-        Section("2. Configuracion MPD") {
+        Section("2. MPD Configuration") {
             if let conf = detectedConf {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
-                    Text("mpd.conf detectado")
+                    Text("mpd.conf detected")
                         .fontWeight(.medium)
                     Spacer()
                     Text(conf)
@@ -165,27 +165,27 @@ struct FirstRunSetupView: View {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.orange)
-                    Text("No se encontro mpd.conf")
+                    Text("mpd.conf not found")
                         .fontWeight(.medium)
                 }
 
                 HStack {
                     TextField("music_directory", text: $musicPath)
                         .textFieldStyle(.roundedBorder)
-                    Button("Elegir...") {
+                    Button("Choose...") {
                         chooseFolder()
                     }
                 }
 
                 HStack {
-                    Button("Generar mpd.conf") {
+                    Button("Generate mpd.conf") {
                         generateConf()
                     }
 
                     if confGenerated {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
-                        Text("Creado en ~/.mpd/mpd.conf")
+                        Text("Created at ~/.mpd/mpd.conf")
                             .font(.caption)
                             .foregroundColor(.green)
                     }
@@ -196,7 +196,7 @@ struct FirstRunSetupView: View {
                     }
                 }
 
-                Text("Genera una configuracion basica bitperfect en ~/.mpd/mpd.conf")
+                Text("Generates a basic bitperfect configuration at ~/.mpd/mpd.conf")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -206,12 +206,12 @@ struct FirstRunSetupView: View {
     // MARK: - Connection Section
 
     private var connectionSection: some View {
-        Section("3. Conexion") {
+        Section("3. Connection") {
             HStack {
                 TextField("Host", text: $mpdHost)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 200)
-                TextField("Puerto", text: $mpdPort)
+                TextField("Port", text: $mpdPort)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 80)
             }
@@ -220,7 +220,7 @@ struct FirstRunSetupView: View {
                 HStack {
                     TextField("music_directory", text: $musicPath)
                         .textFieldStyle(.roundedBorder)
-                    Button("Elegir...") {
+                    Button("Choose...") {
                         chooseFolder()
                     }
                 }
@@ -231,9 +231,9 @@ struct FirstRunSetupView: View {
     // MARK: - Sources Section
 
     private var sourcesSection: some View {
-        Section("4. Fuentes de musica") {
+        Section("4. Music sources") {
             if sources.isEmpty {
-                Text("Sin fuentes. Puedes añadirlas ahora o despues en Settings.")
+                Text("No sources. You can add them now or later in Settings.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -252,10 +252,10 @@ struct FirstRunSetupView: View {
                     }
                 }
             }
-            Button("Añadir fuente...") {
+            Button("Add source...") {
                 addSource()
             }
-            Text("Crea symlinks en el music_directory apuntando a tus carpetas de musica")
+            Text("Creates symlinks in music_directory pointing to your music folders")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -268,7 +268,7 @@ struct FirstRunSetupView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Seleccionar"
+        panel.prompt = "Select"
         if panel.runModal() == .OK, let url = panel.url {
             musicPath = url.path
         }
@@ -294,8 +294,8 @@ struct FirstRunSetupView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Añadir fuente"
-        panel.message = "Selecciona una carpeta con musica"
+        panel.prompt = "Add source"
+        panel.message = "Select a folder with music"
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
@@ -323,12 +323,12 @@ struct FirstRunSetupView: View {
                 let status = try await client.status()
                 await MainActor.run {
                     testing = false
-                    testResult = status["state"] != nil ? .success : .failure("Respuesta inesperada")
+                    testResult = status["state"] != nil ? .success : .failure("Unexpected response")
                 }
             } catch {
                 await MainActor.run {
                     testing = false
-                    testResult = .failure("No se pudo conectar")
+                    testResult = .failure("Could not connect")
                 }
             }
         }
