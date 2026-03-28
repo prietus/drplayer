@@ -13,6 +13,7 @@ struct TrackRow: View {
     var onEnqueue: (() -> Void)? = nil
 
     @State private var showVersions = false
+    @State private var showDRComparison = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -247,15 +248,28 @@ struct TrackRow: View {
     @ViewBuilder
     private var drBadge: some View {
         if let dr = track.dr, dr > 0 {
-            Text("DR\(dr)")
-                .font(.caption2.bold().monospaced())
-                .foregroundColor(drColor(dr))
-                .padding(.horizontal, 4)
-                .padding(.vertical, 1)
-                .background(
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(drColor(dr).opacity(0.15))
+            Button {
+                showDRComparison.toggle()
+            } label: {
+                Text("DR\(dr)")
+                    .font(.caption2.bold().monospaced())
+                    .foregroundColor(drColor(dr))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(drColor(dr).opacity(0.15))
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Comparar DR con otras ediciones en Loudness War DB")
+            .popover(isPresented: $showDRComparison, arrowEdge: .bottom) {
+                DRComparisonPopover(
+                    artist: track.artist.isEmpty ? track.albumArtist : track.artist,
+                    album: track.album,
+                    myDR: dr
                 )
+            }
         }
     }
 
