@@ -28,29 +28,50 @@ enum DiscogsService {
     /// Search by catalog number (most precise for pressing identification)
     static func searchByCatalog(_ catno: String) async -> DiscogsRelease? {
         guard isConfigured else { return nil }
+        let cacheKey = "discogs_catno_\(catno.lowercased())"
+        if let cachedId = MetadataCache.getString(cacheKey) {
+            return cachedId == "(none)" ? nil : await fetchRelease(id: Int(cachedId) ?? 0)
+        }
         let encoded = catno.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlStr = "\(baseURL)/database/search?catno=\(encoded)&key=\(key)&secret=\(secret)"
-        guard let results = await searchRequest(urlStr: urlStr) else { return nil }
-        guard let firstId = results.first else { return nil }
+        guard let results = await searchRequest(urlStr: urlStr), let firstId = results.first else {
+            MetadataCache.setString(cacheKey, value: "(none)")
+            return nil
+        }
+        MetadataCache.setString(cacheKey, value: String(firstId))
         return await fetchRelease(id: firstId)
     }
 
     /// Search by barcode
     static func searchByBarcode(_ barcode: String) async -> DiscogsRelease? {
         guard isConfigured else { return nil }
+        let cacheKey = "discogs_barcode_\(barcode)"
+        if let cachedId = MetadataCache.getString(cacheKey) {
+            return cachedId == "(none)" ? nil : await fetchRelease(id: Int(cachedId) ?? 0)
+        }
         let urlStr = "\(baseURL)/database/search?barcode=\(barcode)&key=\(key)&secret=\(secret)"
-        guard let results = await searchRequest(urlStr: urlStr) else { return nil }
-        guard let firstId = results.first else { return nil }
+        guard let results = await searchRequest(urlStr: urlStr), let firstId = results.first else {
+            MetadataCache.setString(cacheKey, value: "(none)")
+            return nil
+        }
+        MetadataCache.setString(cacheKey, value: String(firstId))
         return await fetchRelease(id: firstId)
     }
 
     /// Search by artist + album title
     static func search(artist: String, album: String) async -> DiscogsRelease? {
         guard isConfigured else { return nil }
+        let cacheKey = "discogs_search_\(artist.lowercased())_\(album.lowercased())"
+        if let cachedId = MetadataCache.getString(cacheKey) {
+            return cachedId == "(none)" ? nil : await fetchRelease(id: Int(cachedId) ?? 0)
+        }
         let q = "\(artist) \(album)".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlStr = "\(baseURL)/database/search?q=\(q)&type=release&key=\(key)&secret=\(secret)"
-        guard let results = await searchRequest(urlStr: urlStr) else { return nil }
-        guard let firstId = results.first else { return nil }
+        guard let results = await searchRequest(urlStr: urlStr), let firstId = results.first else {
+            MetadataCache.setString(cacheKey, value: "(none)")
+            return nil
+        }
+        MetadataCache.setString(cacheKey, value: String(firstId))
         return await fetchRelease(id: firstId)
     }
 

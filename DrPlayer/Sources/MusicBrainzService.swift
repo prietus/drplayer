@@ -33,6 +33,12 @@ enum MusicBrainzService {
     // MARK: - Release search
 
     static func searchRelease(artist: String, album: String) async -> MBRelease? {
+        // Check if we already resolved this search
+        let searchCacheKey = "mb_search_release_\(artist.lowercased())_\(album.lowercased())"
+        if let cachedId = MetadataCache.getString(searchCacheKey) {
+            return cachedId == "(none)" ? nil : await fetchRelease(id: cachedId)
+        }
+
         let query = "release:\(album) AND artist:\(artist)"
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlStr = "\(baseURL)/release/?query=\(query)&fmt=json&limit=5"
@@ -41,11 +47,14 @@ enum MusicBrainzService {
         guard let data = await fetch(url) else { return nil }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let releases = json["releases"] as? [[String: Any]],
-              let best = releases.first else { return nil }
+              let best = releases.first else {
+            MetadataCache.setString(searchCacheKey, value: "(none)")
+            return nil
+        }
 
         let releaseId = best["id"] as? String ?? ""
+        MetadataCache.setString(searchCacheKey, value: releaseId)
 
-        // Fetch full release with relationships
         return await fetchRelease(id: releaseId)
     }
 
@@ -168,6 +177,11 @@ enum MusicBrainzService {
     // MARK: - Artist info
 
     static func searchArtist(name: String) async -> MBArtistInfo? {
+        let searchCacheKey = "mb_search_artist_\(name.lowercased())"
+        if let cachedId = MetadataCache.getString(searchCacheKey) {
+            return cachedId == "(none)" ? nil : await fetchArtist(id: cachedId)
+        }
+
         let query = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlStr = "\(baseURL)/artist/?query=artist:\(query)&fmt=json&limit=3"
         guard let url = URL(string: urlStr) else { return nil }
@@ -176,8 +190,12 @@ enum MusicBrainzService {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let artists = json["artists"] as? [[String: Any]],
               let best = artists.first,
-              let artistId = best["id"] as? String else { return nil }
+              let artistId = best["id"] as? String else {
+            MetadataCache.setString(searchCacheKey, value: "(none)")
+            return nil
+        }
 
+        MetadataCache.setString(searchCacheKey, value: artistId)
         return await fetchArtist(id: artistId)
     }
 
