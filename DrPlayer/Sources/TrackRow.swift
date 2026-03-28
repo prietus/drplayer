@@ -5,7 +5,8 @@ struct TrackRow: View {
     let index: Int
     let albumArtist: String
     let isCurrentTrack: Bool
-    let allAlbums: [Album]
+    let versionCount: Int  // pre-computed, no search on render
+    let allAlbums: [Album] // only used when popover opens
     let onTap: () -> Void
     let onPlay: () -> Void
     let onToggleFavorite: () -> Void
@@ -80,15 +81,14 @@ struct TrackRow: View {
 
     @ViewBuilder
     private var versionsBadge: some View {
-        let versions = findOtherVersions()
-        if !versions.isEmpty {
+        if versionCount > 0 {
             Button {
                 showVersions.toggle()
             } label: {
                 HStack(spacing: 2) {
                     Image(systemName: "doc.on.doc")
                         .font(.caption2)
-                    Text("\(versions.count)")
+                    Text("\(versionCount)")
                         .font(.caption2.bold())
                 }
                 .foregroundColor(.blue)
@@ -99,7 +99,7 @@ struct TrackRow: View {
             .buttonStyle(.plain)
             .help("Otras versiones de este track")
             .popover(isPresented: $showVersions, arrowEdge: .bottom) {
-                versionsPopover(versions)
+                versionsPopover(findOtherVersions()) // only computed on click
             }
         }
     }

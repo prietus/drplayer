@@ -187,6 +187,7 @@ struct PlayerView: View {
                         onPlayFile: { file in
                             Task { await vm.enqueueAndPlay(file: file) }
                         },
+                        versionCountFor: { vm.versionCount(for: $0) },
                         onBack: { selectedAlbum = nil },
                         onToggleFavorite: { track in
                             Task { await vm.toggleFavorite(track: track) }

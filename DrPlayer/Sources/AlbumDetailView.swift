@@ -11,6 +11,7 @@ struct AlbumDetailView: View {
     let onPlayTrack: (Int) -> Void
     let onEnqueueTrack: (Track) -> Void
     let onPlayFile: (String) -> Void
+    let versionCountFor: (Track) -> Int
     let onBack: () -> Void
     let onToggleFavorite: (Track) -> Void
     let onSelectGenre: (String) -> Void
@@ -468,6 +469,7 @@ struct AlbumDetailView: View {
                     index: idx,
                     albumArtist: album.artist,
                     isCurrentTrack: isThisAlbumPlaying && currentPos == idx,
+                    versionCount: versionCountFor(track),
                     allAlbums: allAlbums,
                     onTap: { selectedTrack = track },
                     onPlay: { onPlayTrack(idx) },

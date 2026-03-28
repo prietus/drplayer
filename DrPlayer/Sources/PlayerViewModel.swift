@@ -181,6 +181,7 @@ class PlayerViewModel {
             await MainActor.run {
                 self.albums = grouped
                 self.playlist = Self.parseTracks(pl)
+                self.buildVersionIndex()
             }
 
             // Enrich genres in background (rate-limited, cached)
@@ -435,6 +436,45 @@ class PlayerViewModel {
                 self.albums[albumIdx].avgDR = avgDR
             }
         }
+    }
+
+    // MARK: - Version Index
+
+    /// Pre-computed index: normalized title → count of other versions
+    private(set) var versionIndex: [String: Int] = [:]
+
+    func buildVersionIndex() {
+        var titleIndex: [String: Int] = [:]
+        for album in albums {
+            for track in album.tracks {
+                let key = normalizeTrackTitle(track.title, artist: track.artist)
+                titleIndex[key, default: 0] += 1
+            }
+        }
+        // Subtract 1 (the track itself) — only count OTHER versions
+        versionIndex = titleIndex.mapValues { max(0, $0 - 1) }
+    }
+
+    func versionCount(for track: Track) -> Int {
+        let key = normalizeTrackTitle(track.title, artist: track.artist)
+        return versionIndex[key] ?? 0
+    }
+
+    private func normalizeTrackTitle(_ title: String, artist: String) -> String {
+        var cleaned = title.lowercased()
+            .folding(options: .diacriticInsensitive, locale: .current)
+        // Remove trailing parens/brackets
+        while let range = cleaned.range(of: #"\s*\([^)]*\)\s*$"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+        while let range = cleaned.range(of: #"\s*\[[^\]]*\]\s*$"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+        if let range = cleaned.range(of: #"\s*-\s*remaster.*$"#, options: [.regularExpression, .caseInsensitive]) {
+            cleaned.removeSubrange(range)
+        }
+        let artistNorm = artist.lowercased().folding(options: .diacriticInsensitive, locale: .current)
+        return "\(artistNorm)|\(cleaned)"
     }
 
     // MARK: - Waveform
