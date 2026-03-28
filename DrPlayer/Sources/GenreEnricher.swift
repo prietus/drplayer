@@ -11,7 +11,8 @@ enum GenreEnricher {
 
     /// Enrich genres for a single album. Returns additional genres not already present.
     static func enrichGenres(for album: Album) async -> [String] {
-        let cacheKey = cacheKey(artist: album.artist, album: album.title)
+        let cleanTitle = cleanAlbumTitle(album.title)
+        let cacheKey = cacheKey(artist: album.artist, album: cleanTitle)
 
         // Check cache first
         if let cached = loadCache(key: cacheKey) {
@@ -19,7 +20,6 @@ enum GenreEnricher {
         }
 
         var newGenres: [String] = []
-        let cleanTitle = cleanAlbumTitle(album.title)
 
         // 1. MusicBrainz: direct lookup by album ID (fastest, most reliable)
         if !album.musicbrainzAlbumId.isEmpty {

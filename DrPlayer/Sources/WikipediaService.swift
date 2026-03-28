@@ -111,6 +111,12 @@ enum WikipediaService {
     }
 
     private static func fetchSummaryFromURL(_ url: URL, lang: String) async -> WikiSummary? {
+        let cacheKey = "wiki_\(lang)_\(url.absoluteString)"
+        if let cached = MetadataCache.get(cacheKey),
+           let json = try? JSONSerialization.jsonObject(with: cached) as? [String: Any] {
+            return parseSummary(json: json, lang: lang)
+        }
+
         var request = URLRequest(url: url)
         request.setValue("DrPlayer/1.0", forHTTPHeaderField: "User-Agent")
 
@@ -119,6 +125,15 @@ enum WikipediaService {
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }
+
+        if let result = parseSummary(json: json, lang: lang) {
+            MetadataCache.set(cacheKey, data: data)
+            return result
+        }
+        return nil
+    }
+
+    private static func parseSummary(json: [String: Any], lang: String) -> WikiSummary? {
 
         // Skip disambiguation pages
         let pageType = json["type"] as? String ?? ""

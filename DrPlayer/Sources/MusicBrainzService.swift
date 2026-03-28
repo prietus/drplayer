@@ -50,6 +50,12 @@ enum MusicBrainzService {
     }
 
     static func fetchRelease(id: String) async -> MBRelease? {
+        let cacheKey = "mb_release_\(id)"
+        if let cached = MetadataCache.get(cacheKey),
+           let json = try? JSONSerialization.jsonObject(with: cached) as? [String: Any] {
+            return parseRelease(id: id, json: json)
+        }
+
         let urlStr = "\(baseURL)/release/\(id)?inc=artist-credits+labels+recordings+release-groups+url-rels+artist-rels+recording-level-rels+genres&fmt=json"
         guard let url = URL(string: urlStr) else { return nil }
 
@@ -57,8 +63,12 @@ enum MusicBrainzService {
         try? await Task.sleep(for: .seconds(1))
 
         guard let data = await fetch(url) else { return nil }
+        MetadataCache.set(cacheKey, data: data)
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return parseRelease(id: id, json: json)
+    }
 
+    private static func parseRelease(id: String, json: [String: Any]) -> MBRelease? {
         let title = json["title"] as? String ?? ""
         let date = json["date"] as? String ?? ""
         let country = json["country"] as? String ?? ""
@@ -172,14 +182,24 @@ enum MusicBrainzService {
     }
 
     static func fetchArtist(id: String) async -> MBArtistInfo? {
+        let cacheKey = "mb_artist_\(id)"
+        if let cached = MetadataCache.get(cacheKey),
+           let json = try? JSONSerialization.jsonObject(with: cached) as? [String: Any] {
+            return parseArtist(id: id, json: json)
+        }
+
         let urlStr = "\(baseURL)/artist/\(id)?inc=url-rels+artist-rels+genres&fmt=json"
         guard let url = URL(string: urlStr) else { return nil }
 
         try? await Task.sleep(for: .seconds(1))
 
         guard let data = await fetch(url) else { return nil }
+        MetadataCache.set(cacheKey, data: data)
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return parseArtist(id: id, json: json)
+    }
 
+    private static func parseArtist(id: String, json: [String: Any]) -> MBArtistInfo? {
         let name = json["name"] as? String ?? ""
         let type = json["type"] as? String ?? ""
         let beginDate = (json["life-span"] as? [String: Any])?["begin"] as? String ?? ""
