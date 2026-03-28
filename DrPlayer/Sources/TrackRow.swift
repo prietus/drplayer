@@ -11,10 +11,12 @@ struct TrackRow: View {
     let onPlay: () -> Void
     let onToggleFavorite: () -> Void
     let onPlayFile: (String) -> Void
+    let onSetPreferred: ((String) -> Void)?  // set preferred version by file
     var onEnqueue: (() -> Void)? = nil
 
     @State private var showVersions = false
     @State private var showDRComparison = false
+    @State private var preferredFile: String? = nil
 
     var body: some View {
         HStack(spacing: 8) {
@@ -191,6 +193,22 @@ struct TrackRow: View {
                                 .foregroundStyle(.quaternary)
                         }
                     }
+
+                    Spacer()
+
+                    // "Set as preferred" button
+                    if let onSetPreferred {
+                        Button {
+                            onSetPreferred(item.track.file)
+                            showVersions = false
+                        } label: {
+                            Image(systemName: isPreferred(item.track) ? "checkmark.circle.fill" : "checkmark.circle")
+                                .font(.caption)
+                                .foregroundColor(isPreferred(item.track) ? .green : .secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help(isPreferred(item.track) ? "Version preferida" : "Usar como version preferida")
+                    }
                 }
                 .padding(.vertical, 4)
                 .padding(.horizontal, 4)
@@ -205,6 +223,10 @@ struct TrackRow: View {
         }
         .padding(12)
         .frame(minWidth: 320, maxWidth: 420)
+    }
+
+    private func isPreferred(_ t: Track) -> Bool {
+        preferredFile == t.file
     }
 
     private func badgeColor(_ badge: AudioQualityScore.Badge) -> Color {

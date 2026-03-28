@@ -184,6 +184,8 @@ class PlayerViewModel {
                 self.buildVersionIndex()
             }
 
+            await loadPreferredStickers()
+
             // Enrich genres in background (rate-limited, cached)
             Task.detached { [weak self] in
                 guard let self else { return }
@@ -360,7 +362,7 @@ class PlayerViewModel {
     private func generateRadioQueue() async {
         guard let context = radioContext else { return }
         let currentFiles = Set(playlist.map(\.file))
-        let tracks = RadioEngine.generate(from: context, allAlbums: albums, count: 20, excludeFiles: currentFiles)
+        let tracks = RadioEngine.generate(from: context, allAlbums: albums, count: 20, excludeFiles: currentFiles, preferredFiles: preferredFiles)
 
         for track in tracks {
             try? await mpd.command("add \"\(track.file)\"")
@@ -434,6 +436,59 @@ class PlayerViewModel {
             await MainActor.run { [weak self] in
                 guard let self, albumIdx < self.albums.count else { return }
                 self.albums[albumIdx].avgDR = avgDR
+            }
+        }
+    }
+
+    // MARK: - Preferred Versions
+
+    /// Set a track as the preferred version (stores in MPD stickers)
+    func setPreferredVersion(file: String, title: String, artist: String) async {
+        // Store: sticker "preferred" = normalized title key
+        try? await mpd.setStickerBool(uri: file, name: "preferred", value: true)
+        // Remove preferred from other versions of the same track
+        let key = normalizeTrackTitle(title, artist: artist)
+        for album in albums {
+            for track in album.tracks {
+                let trackKey = normalizeTrackTitle(track.title, artist: track.artist)
+                if trackKey == key && track.file != file {
+                    try? await mpd.setStickerBool(uri: track.file, name: "preferred", value: false)
+                }
+            }
+        }
+    }
+
+    /// Check if a track is marked as preferred
+    func isPreferred(file: String) async -> Bool {
+        let val = try? await mpd.getSticker(uri: file, name: "preferred")
+        return val == "1"
+    }
+
+    /// Get the preferred version file for a track title, if any
+    func preferredVersion(title: String, artist: String) -> String? {
+        let key = normalizeTrackTitle(title, artist: artist)
+        for album in albums {
+            for track in album.tracks {
+                let trackKey = normalizeTrackTitle(track.title, artist: track.artist)
+                if trackKey == key {
+                    // Check sticker synchronously from cache — for Radio use
+                    // We'll load preferred stickers at startup
+                    if preferredFiles.contains(track.file) {
+                        return track.file
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Cached set of files marked as preferred
+    var preferredFiles: Set<String> = []
+
+    func loadPreferredStickers() async {
+        if let stickers = try? await mpd.findSticker(name: "preferred") {
+            await MainActor.run {
+                self.preferredFiles = Set(stickers.filter { $0.value == "1" }.map(\.key))
             }
         }
     }

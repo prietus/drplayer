@@ -12,6 +12,7 @@ struct AlbumDetailView: View {
     let onEnqueueTrack: (Track) -> Void
     let onPlayFile: (String) -> Void
     let versionCountFor: (Track) -> Int
+    let onSetPreferred: ((String) -> Void)?
     let onBack: () -> Void
     let onToggleFavorite: (Track) -> Void
     let onSelectGenre: (String) -> Void
@@ -480,6 +481,7 @@ struct AlbumDetailView: View {
                         }
                     },
                     onPlayFile: onPlayFile,
+                    onSetPreferred: onSetPreferred,
                     onEnqueue: { onEnqueueTrack(track) }
                 )
 
