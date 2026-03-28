@@ -121,12 +121,6 @@ struct TrackRow: View {
                 let isCurrentTrack = item.track.file == track.file
 
                 HStack(spacing: 8) {
-                    // Badge
-                    Image(systemName: item.score.badge.rawValue)
-                        .font(.caption)
-                        .foregroundColor(badgeColor(item.score.badge))
-                        .frame(width: 16)
-
                     // Play button (not for current track)
                     if !isCurrentTrack {
                         Button {
