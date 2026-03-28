@@ -148,7 +148,14 @@ enum DiscogsService {
             lowestPrice = String(format: "%.2f", lp)
         }
 
-        let discogsURL = uri.isEmpty ? "https://www.discogs.com/release/\(id)" : "https://www.discogs.com\(uri)"
+        let discogsURL: String
+        if uri.hasPrefix("http") {
+            discogsURL = uri
+        } else if !uri.isEmpty {
+            discogsURL = "https://www.discogs.com\(uri)"
+        } else {
+            discogsURL = "https://www.discogs.com/release/\(id)"
+        }
 
         return DiscogsRelease(
             id: id, title: title, year: year, country: country,
