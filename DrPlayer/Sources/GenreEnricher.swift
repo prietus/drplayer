@@ -28,16 +28,27 @@ enum GenreEnricher {
             }
         }
 
-        // 2. Last.fm album tags (good for subgenres like "progressive rock", "post-punk")
-        // Try clean title first, then original if different
-        var lfmTags = await LastFMService.fetchAlbumTags(artist: album.artist, album: cleanTitle)
-        if lfmTags.isEmpty && cleanTitle != album.title {
-            lfmTags = await LastFMService.fetchAlbumTags(artist: album.artist, album: album.title)
+        // 2. Last.fm album tags
+        // Try different artist name variants (AC-DC → AC/DC, etc.)
+        let artistVariants = artistSearchNames(album.artist)
+        var lfmTags: [String] = []
+        for artistName in artistVariants {
+            lfmTags = await LastFMService.fetchAlbumTags(artist: artistName, album: cleanTitle)
+            if !lfmTags.isEmpty { break }
+            if cleanTitle != album.title {
+                lfmTags = await LastFMService.fetchAlbumTags(artist: artistName, album: album.title)
+                if !lfmTags.isEmpty { break }
+            }
         }
-        // 3. Fallback: Last.fm artist tags (broader but better than nothing)
+        // 3. Fallback: Last.fm artist tags
         if lfmTags.isEmpty && newGenres.isEmpty {
-            if let artistInfo = await LastFMService.fetchArtist(name: album.artist) {
-                lfmTags = artistInfo.tags
+            for artistName in artistVariants {
+                if let artistInfo = await LastFMService.fetchArtist(name: artistName) {
+                    if !artistInfo.tags.isEmpty {
+                        lfmTags = artistInfo.tags
+                        break
+                    }
+                }
             }
         }
         newGenres.append(contentsOf: lfmTags)
@@ -119,6 +130,21 @@ enum GenreEnricher {
         }
 
         return cleaned.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Generate artist name variants for API searches
+    /// "AC-DC" → ["AC-DC", "AC/DC"], "Guns N' Roses" → ["Guns N' Roses"]
+    private static func artistSearchNames(_ name: String) -> [String] {
+        var names = [name]
+        // Try replacing - with / (AC-DC → AC/DC)
+        if name.contains("-") {
+            names.append(name.replacingOccurrences(of: "-", with: "/"))
+        }
+        // Try replacing / with -
+        if name.contains("/") {
+            names.append(name.replacingOccurrences(of: "/", with: "-"))
+        }
+        return names
     }
 
     /// Count how many albums are already cached
