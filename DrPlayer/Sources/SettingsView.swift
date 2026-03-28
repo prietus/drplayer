@@ -27,6 +27,8 @@ private struct GeneralTab: View {
     @State private var mpdHost = AppSettings.shared.mpdHost
     @State private var mpdPort = String(AppSettings.shared.mpdPort)
     @State private var lastfmKey = AppSettings.shared.lastfmApiKey
+    @State private var discogsKey = AppSettings.shared.discogsKey
+    @State private var discogsSecret = AppSettings.shared.discogsSecret
     @State private var testResult: TestResult?
     @State private var detectedConf: String?
 
@@ -107,6 +109,30 @@ private struct GeneralTab: View {
                         }
                 }
                 Text("Obtener en last.fm/api/account/create — enriquece datos de artistas")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+
+                Divider()
+
+                HStack {
+                    Text("Discogs Key")
+                        .frame(width: 120, alignment: .trailing)
+                    SecureField("Consumer Key", text: $discogsKey)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: discogsKey) {
+                            AppSettings.shared.discogsKey = discogsKey
+                        }
+                }
+                HStack {
+                    Text("Discogs Secret")
+                        .frame(width: 120, alignment: .trailing)
+                    SecureField("Consumer Secret", text: $discogsSecret)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: discogsSecret) {
+                            AppSettings.shared.discogsSecret = discogsSecret
+                        }
+                }
+                Text("Obtener en discogs.com/settings/developers — datos de ediciones fisicas")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }

@@ -19,6 +19,12 @@ class AppSettings {
     var lastfmApiKey: String {
         didSet { UserDefaults.standard.set(lastfmApiKey, forKey: "lastfmApiKey") }
     }
+    var discogsKey: String {
+        didSet { UserDefaults.standard.set(discogsKey, forKey: "discogsKey") }
+    }
+    var discogsSecret: String {
+        didSet { UserDefaults.standard.set(discogsSecret, forKey: "discogsSecret") }
+    }
 
     /// Standard mpd.conf search paths
     static let mpdConfPaths = [
@@ -43,6 +49,8 @@ class AppSettings {
         self.mpdPort = storedPort > 0 ? storedPort : (detected.port ?? 6600)
         self.hasCompletedSetup = defaults.bool(forKey: "hasCompletedSetup")
         self.lastfmApiKey = defaults.string(forKey: "lastfmApiKey") ?? ""
+        self.discogsKey = defaults.string(forKey: "discogsKey") ?? ""
+        self.discogsSecret = defaults.string(forKey: "discogsSecret") ?? ""
     }
 
     /// Resolved, symlink-aware music base path

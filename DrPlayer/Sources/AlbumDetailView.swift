@@ -134,7 +134,7 @@ struct AlbumDetailView: View {
             .frame(minWidth: 200)
 
             // Center: MusicBrainz + Wikipedia info
-            AlbumInfoView(artist: album.artist, albumTitle: album.title)
+            AlbumInfoView(artist: album.artist, albumTitle: album.title, musicbrainzAlbumId: album.musicbrainzAlbumId)
                 .frame(maxWidth: .infinity)
 
             // Cover art (right)

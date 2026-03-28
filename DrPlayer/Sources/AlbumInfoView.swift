@@ -3,13 +3,16 @@ import SwiftUI
 struct AlbumInfoView: View {
     let artist: String
     let albumTitle: String
+    let musicbrainzAlbumId: String
 
     @State private var release: MBRelease?
     @State private var artistInfo: MBArtistInfo?
+    @State private var discogs: DiscogsRelease?
     @State private var albumWiki: WikiSummary?
     @State private var artistWiki: WikiSummary?
     @State private var loading = true
-    @State private var showRelease = false
+    @State private var showRelease = true
+    @State private var showDiscogs = false
     @State private var showCredits = false
     @State private var showMembers = false
 
@@ -43,6 +46,13 @@ struct AlbumInfoView: View {
                     }
                 }
 
+                // Collapsible: Discogs edition details
+                if let dg = discogs {
+                    collapsibleSection("Edicion fisica (Discogs)", isExpanded: $showDiscogs) {
+                        discogsSection(dg)
+                    }
+                }
+
                 // Collapsible: Credits
                 if let rel = release, !rel.credits.isEmpty {
                     collapsibleSection("Créditos", isExpanded: $showCredits) {
@@ -73,8 +83,13 @@ struct AlbumInfoView: View {
     // MARK: - Load
 
     private func loadInfo() async {
-        // Search MusicBrainz for the release
-        async let mbRelease = MusicBrainzService.searchRelease(artist: artist, album: albumTitle)
+        // MusicBrainz: prefer direct lookup by ID, fallback to text search
+        async let mbRelease: MBRelease? = {
+            if !musicbrainzAlbumId.isEmpty {
+                return await MusicBrainzService.fetchRelease(id: musicbrainzAlbumId)
+            }
+            return await MusicBrainzService.searchRelease(artist: artist, album: albumTitle)
+        }()
         async let mbArtist = MusicBrainzService.searchArtist(name: artist)
 
         let rel = await mbRelease
@@ -106,6 +121,17 @@ struct AlbumInfoView: View {
         }
         if artistWiki == nil {
             artistWiki = await WikipediaService.searchArtist(name: artist)
+        }
+
+        // Discogs: search by catalog number (from MB), barcode, or artist+album
+        if let catno = rel?.catalogNumber, !catno.isEmpty {
+            discogs = await DiscogsService.searchByCatalog(catno)
+        }
+        if discogs == nil, let barcode = rel?.barcode, !barcode.isEmpty {
+            discogs = await DiscogsService.searchByBarcode(barcode)
+        }
+        if discogs == nil {
+            discogs = await DiscogsService.search(artist: artist, album: albumTitle)
         }
 
         loading = false
@@ -190,6 +216,83 @@ struct AlbumInfoView: View {
                     infoRow("Géneros (MB)", rel.genres.joined(separator: ", "))
                 }
             }
+
+            // External links for this specific release
+            HStack(spacing: 12) {
+                if !rel.id.isEmpty {
+                    linkButton("MusicBrainz", url: "https://musicbrainz.org/release/\(rel.id)", icon: "circle.grid.3x3")
+                }
+                if !rel.catalogNumber.isEmpty {
+                    linkButton("Buscar en Discogs", url: "https://www.discogs.com/search/?type=release&catno=\(rel.catalogNumber.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")", icon: "record.circle")
+                } else if !rel.barcode.isEmpty {
+                    linkButton("Buscar en Discogs", url: "https://www.discogs.com/search/?type=release&barcode=\(rel.barcode)", icon: "record.circle")
+                }
+            }
+            .padding(.top, 4)
+
+            Text("Fuente: MusicBrainz")
+                .font(.caption2)
+                .foregroundStyle(.quaternary)
+                .italic()
+        }
+    }
+
+    private func linkButton(_ label: String, url: String, icon: String) -> some View {
+        Button {
+            if let u = URL(string: url) { NSWorkspace.shared.open(u) }
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: icon).font(.caption2)
+                Text(label).font(.caption2)
+            }
+            .foregroundStyle(.blue)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func discogsSection(_ dg: DiscogsRelease) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 3) {
+                if !dg.label.isEmpty {
+                    infoRow("Sello", dg.label)
+                }
+                if !dg.catalogNumber.isEmpty {
+                    infoRow("Catalogo", dg.catalogNumber)
+                }
+                if dg.year > 0 {
+                    infoRow("Año", String(dg.year))
+                }
+                if !dg.country.isEmpty {
+                    infoRow("Pais", dg.country)
+                }
+                if !dg.formats.isEmpty {
+                    infoRow("Formato", dg.formats.joined(separator: ", "))
+                }
+                if !dg.styles.isEmpty {
+                    infoRow("Estilos", dg.styles.joined(separator: ", "))
+                }
+                if let price = dg.lowestPrice {
+                    infoRow("Precio min.", "$\(price)")
+                }
+            }
+
+            if !dg.notes.isEmpty {
+                Text(dg.notes)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(4)
+                    .padding(.top, 2)
+            }
+
+            HStack(spacing: 12) {
+                linkButton("Ver en Discogs", url: dg.url, icon: "record.circle")
+            }
+            .padding(.top, 4)
+
+            Text("Fuente: Discogs")
+                .font(.caption2)
+                .foregroundStyle(.quaternary)
+                .italic()
         }
     }
 
