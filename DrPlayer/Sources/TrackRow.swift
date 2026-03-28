@@ -158,6 +158,14 @@ struct TrackRow: View {
                                     .padding(.vertical, 1)
                                     .background(Capsule().fill(.green.opacity(0.15)))
                             }
+                            if isPreferred(item.track) {
+                                Text("PREFERIDA")
+                                    .font(.system(size: 8, weight: .heavy))
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(Capsule().fill(.secondary.opacity(0.15)))
+                            }
                             if isCurrentTrack {
                                 Text("ACTUAL")
                                     .font(.system(size: 8, weight: .heavy))
@@ -204,14 +212,13 @@ struct TrackRow: View {
                     if let onSetPreferred {
                         Button {
                             onSetPreferred(item.track.file)
-                            showVersions = false
                         } label: {
-                            Image(systemName: isPreferred(item.track) ? "checkmark.circle.fill" : "checkmark.circle")
+                            Image(systemName: "checkmark.circle")
                                 .font(.caption)
-                                .foregroundColor(isPreferred(item.track) ? .green : .secondary)
+                                .foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain)
-                        .help(isPreferred(item.track) ? "Version preferida" : "Usar como version preferida")
+                        .help("Marcar como version preferida")
                     }
                 }
                 .padding(.vertical, 4)
