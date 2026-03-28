@@ -56,12 +56,23 @@ enum DiscogsService {
 
     /// Fetch full release details by Discogs ID
     static func fetchRelease(id: Int) async -> DiscogsRelease? {
+        let cacheKey = "discogs_release_\(id)"
+        if let cached = MetadataCache.get(cacheKey) {
+            if let json = try? JSONSerialization.jsonObject(with: cached) as? [String: Any] {
+                return parseRelease(id: id, json: json)
+            }
+        }
+
         let urlStr = "\(baseURL)/releases/\(id)?key=\(key)&secret=\(secret)"
         guard let url = URL(string: urlStr) else { return nil }
 
         guard let data = await fetch(url) else { return nil }
+        MetadataCache.set(cacheKey, data: data)
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return parseRelease(id: id, json: json)
+    }
 
+    private static func parseRelease(id: Int, json: [String: Any]) -> DiscogsRelease {
         let title = json["title"] as? String ?? ""
         let year = json["year"] as? Int ?? 0
         let country = json["country"] as? String ?? ""
