@@ -25,12 +25,14 @@ struct AlbumInfoView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                // Wikipedia summary always visible at top
+                // Album Wikipedia article (priority)
                 if let wiki = albumWiki {
                     wikiSection(title: "Sobre el álbum", summary: wiki)
                 }
 
-                if let wiki = artistWiki {
+                // Artist Wikipedia article (only if different from album article)
+                if let wiki = artistWiki,
+                   wiki.pageURL != albumWiki?.pageURL {
                     wikiSection(title: "Sobre \(artistInfo?.name ?? artist)", summary: wiki)
                 }
 
@@ -81,17 +83,29 @@ struct AlbumInfoView: View {
         release = rel
         artistInfo = art
 
-        // Fetch Wikipedia articles
+        // Fetch Wikipedia articles for album
         if let slug = rel?.wikipediaSlug {
             albumWiki = await WikipediaService.fetchSummary(slug: slug)
         }
         if albumWiki == nil {
-            // Try searching Wikipedia directly
+            // Try with artist name first (best for disambiguation: "A Night at the Opera Queen album")
             albumWiki = await WikipediaService.search(query: "\(albumTitle) \(artist) album")
         }
+        if albumWiki == nil {
+            // Try "Album (artist album)" pattern: "A Night at the Opera (Queen album)"
+            albumWiki = await WikipediaService.search(query: "\(albumTitle) (\(artist) album)")
+        }
+        if albumWiki == nil {
+            // Try exact album title (works for unique titles like "Storia di un minuto")
+            albumWiki = await WikipediaService.search(query: albumTitle)
+        }
 
+        // Fetch Wikipedia for artist
         if let slug = art?.wikipediaSlug {
             artistWiki = await WikipediaService.fetchSummary(slug: slug)
+        }
+        if artistWiki == nil {
+            artistWiki = await WikipediaService.searchArtist(name: artist)
         }
 
         loading = false

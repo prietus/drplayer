@@ -65,16 +65,41 @@ enum WikipediaService {
         return queries
     }
 
-    /// Search Wikipedia for a topic
+    /// Search Wikipedia for a topic — tries exact slug, then fuzzy search API
     static func search(query: String, lang: String = "en") async -> WikiSummary? {
+        // Try exact slug first
         let slug = query.replacingOccurrences(of: " ", with: "_")
         if let result = await fetchFromWiki(lang: lang, slug: slug) {
             return result
         }
-        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
-        let urlStr = "https://\(lang).wikipedia.org/api/rest_v1/page/summary/\(encoded)"
+        // Fuzzy: use Wikipedia Search API to find the correct title
+        if let title = await searchTitle(query: query, lang: lang) {
+            let fixedSlug = title.replacingOccurrences(of: " ", with: "_")
+            if let result = await fetchFromWiki(lang: lang, slug: fixedSlug) {
+                return result
+            }
+        }
+        return nil
+    }
+
+    /// Use Wikipedia's search API to find the correct article title (handles case/spelling differences)
+    private static func searchTitle(query: String, lang: String) async -> String? {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlStr = "https://\(lang).wikipedia.org/w/api.php?action=query&list=search&srsearch=\(encoded)&format=json&srlimit=1"
         guard let url = URL(string: urlStr) else { return nil }
-        return await fetchSummaryFromURL(url, lang: lang)
+
+        var request = URLRequest(url: url)
+        request.setValue("DrPlayer/1.0", forHTTPHeaderField: "User-Agent")
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse, http.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let queryResult = json["query"] as? [String: Any],
+              let results = queryResult["search"] as? [[String: Any]],
+              let first = results.first,
+              let title = first["title"] as? String else { return nil }
+
+        return title
     }
 
     private static func fetchFromWiki(lang: String, slug: String) async -> WikiSummary? {
@@ -94,6 +119,10 @@ enum WikipediaService {
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }
+
+        // Skip disambiguation pages
+        let pageType = json["type"] as? String ?? ""
+        if pageType == "disambiguation" { return nil }
 
         let title = json["title"] as? String ?? ""
         let extract = json["extract"] as? String ?? ""
