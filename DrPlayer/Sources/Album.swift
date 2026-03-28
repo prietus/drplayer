@@ -35,6 +35,8 @@ struct Album: Identifiable {
     }
 
     /// Resolve cover art from the album folder on disk (cached).
+    /// Returns local cover if available, nil otherwise.
+    /// Use `coverImageAsync` for online fallback.
     var coverImage: NSImage? {
         if let cached = CoverCache.shared.get(folder) {
             return cached
@@ -42,8 +44,23 @@ struct Album: Identifiable {
         let musicBase = AppSettings.shared.musicLibraryPath
         let albumPath = "\(musicBase)/\(folder)"
         let img = Self.findCover(in: albumPath)
-        CoverCache.shared.set(folder, image: img)
+        if img != nil {
+            CoverCache.shared.set(folder, image: img)
+        }
         return img
+    }
+
+    /// Try local cover first, then download from Discogs/Cover Art Archive.
+    func coverImageAsync() async -> NSImage? {
+        // Try local first
+        if let local = coverImage { return local }
+        // Try online
+        if let downloaded = await CoverArtService.downloadCover(for: self) {
+            CoverCache.shared.set(folder, image: downloaded)
+            return downloaded
+        }
+        CoverCache.shared.set(folder, image: nil)
+        return nil
     }
 
     /// All images in the folder + Art/Artwork/Covers/Scans subfolders (for gallery)

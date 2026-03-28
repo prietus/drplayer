@@ -90,7 +90,7 @@ struct AlbumDetailView: View {
         }
         .task {
             let a = album
-            cover = await Task.detached { a.coverImage }.value
+            cover = await a.coverImageAsync()
             let paths = await Task.detached { a.allArtwork }.value
             artworkPaths = paths
             artworkCount = paths.count
@@ -367,7 +367,7 @@ struct AlbumDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 4))
                     .task {
                         let e = edition
-                        let img = await Task.detached { e.coverImage }.value
+                        let img = await e.coverImageAsync()
                         if let img { otherEditionCovers[edition.id] = img }
                     }
 
@@ -422,7 +422,7 @@ struct AlbumDetailView: View {
                     // Reload cover
                     Task {
                         let a = edition
-                        cover = await Task.detached { a.coverImage }.value
+                        cover = await a.coverImageAsync()
                         let paths = await Task.detached { a.allArtwork }.value
                         artworkPaths = paths
                         artworkCount = paths.count

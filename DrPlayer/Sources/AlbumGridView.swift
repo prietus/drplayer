@@ -85,7 +85,7 @@ struct AlbumCell: View {
         }
         .task(id: album.id) {
             let a = album
-            let img = await Task.detached { a.coverImage }.value
+            let img = await a.coverImageAsync()
             cover = img
         }
     }

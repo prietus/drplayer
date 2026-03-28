@@ -345,7 +345,7 @@ struct AlbumThumb: View {
         }
         .task(id: album.id) {
             let a = album
-            cover = await Task.detached { a.coverImage }.value
+            cover = await a.coverImageAsync()
         }
     }
 }
