@@ -171,6 +171,9 @@ struct PlayerView: View {
                         onEnqueueAlbum: {
                             Task { await vm.enqueueAlbum(album) }
                         },
+                        onStartRadio: {
+                            Task { await vm.startRadio(from: album) }
+                        },
                         onPlayTrack: { idx in
                             Task {
                                 guard idx < album.tracks.count else { return }
@@ -411,6 +414,18 @@ struct NowPlayingBar: View {
                         .foregroundColor(showQueue ? .accentColor : .primary)
                 }
                 .help("Cola de reproducción (\(vm.playlist.count) pistas)")
+
+                Button {
+                    if vm.radioEnabled {
+                        vm.stopRadio()
+                    } else {
+                        Task { await vm.startRadioFromCurrent() }
+                    }
+                } label: {
+                    Image(systemName: "antenna.radiowaves.left.and.right")
+                        .foregroundColor(vm.radioEnabled ? .green : .primary)
+                }
+                .help(vm.radioEnabled ? "Radio activa — click para desactivar" : "Iniciar radio basada en lo que suena")
             }
             .font(.title3)
             .buttonStyle(.plain)

@@ -43,6 +43,8 @@ class PlayerViewModel {
     var waveformPeaks: [Float] = []
     var waveformFile: String = ""
     var audioOutputs: [MPDClient.AudioOutput] = []
+    var radioEnabled = false
+    var radioContext: RadioEngine.SeedContext?
 
     private var mpd: MPDClient
     private var timer: Timer?
@@ -145,6 +147,12 @@ class PlayerViewModel {
             if outputPollCounter % 10 == 1 {
                 await refreshOutputs()
             }
+
+            // Radio: auto-continue when queue ends
+            let mpdState = status["state"] ?? "stop"
+            if radioEnabled && mpdState == "stop" && !playlist.isEmpty {
+                await continueRadio()
+            }
         } catch {
             await MainActor.run {
                 self.connected = false
@@ -169,8 +177,7 @@ class PlayerViewModel {
                 self.playlist = Self.parseTracks(pl)
             }
 
-            // Background DR14 scan for all tracks
-            await scanDR14InBackground()
+            // DR14 scan is now on-demand per album, not at startup
         } catch {
             await MainActor.run {
                 self.error = "Error cargando biblioteca"
@@ -284,6 +291,56 @@ class PlayerViewModel {
         }
     }
 
+    // MARK: - Radio
+
+    /// Start radio mode based on an album's metadata
+    func startRadio(from album: Album) async {
+        radioContext = RadioEngine.contextFromAlbum(album)
+        radioEnabled = true
+        await generateRadioQueue()
+    }
+
+    /// Start radio mode based on current playback
+    func startRadioFromCurrent() async {
+        if !playlist.isEmpty {
+            radioContext = RadioEngine.contextFromPlaylist(playlist)
+        } else if let album = albums.first(where: { $0.title == currentAlbum }) {
+            radioContext = RadioEngine.contextFromAlbum(album)
+        }
+        guard radioContext != nil else { return }
+        radioEnabled = true
+        await generateRadioQueue()
+    }
+
+    func stopRadio() {
+        radioEnabled = false
+        radioContext = nil
+    }
+
+    /// Generate and enqueue radio tracks
+    private func generateRadioQueue() async {
+        guard let context = radioContext else { return }
+        let currentFiles = Set(playlist.map(\.file))
+        let tracks = RadioEngine.generate(from: context, allAlbums: albums, count: 20, excludeFiles: currentFiles)
+
+        for track in tracks {
+            try? await mpd.command("add \"\(track.file)\"")
+        }
+        try? await mpd.command("play")
+        await refreshPlaylist()
+    }
+
+    /// Called when radio is enabled and playback stops (queue ended)
+    private func continueRadio() async {
+        // Update context based on what was just played
+        if !playlist.isEmpty {
+            radioContext = RadioEngine.contextFromPlaylist(playlist)
+        }
+        // Clear old queue and generate new
+        try? await mpd.command("clear")
+        await generateRadioQueue()
+    }
+
     // MARK: - DR14 Analysis
 
     private var dr14File: String = "" // track file currently being analyzed
@@ -304,43 +361,40 @@ class PlayerViewModel {
         }
     }
 
-    /// Background scan: compute DR14 for all tracks.
-    /// Updates album model incrementally as results come in.
-    private func scanDR14InBackground() async {
+    /// Analyze DR14 for a specific album (on demand, not whole library).
+    func scanDR14ForAlbum(albumIdx: Int) async {
         let musicBase = AppSettings.shared.musicLibraryPath
-        let snapshot = await MainActor.run { self.albums }
+        let album = await MainActor.run { albumIdx < self.albums.count ? self.albums[albumIdx] : nil }
+        guard let album else { return }
 
-        for (albumIdx, album) in snapshot.enumerated() {
-            var trackDRs: [Int] = []
-            var anyComputed = false
+        // Skip if all tracks already have DR
+        guard album.tracks.contains(where: { $0.dr == nil }) else { return }
 
-            for (trackIdx, track) in album.tracks.enumerated() {
-                if let dr = track.dr {
-                    trackDRs.append(dr)
-                    continue
-                }
+        var trackDRs: [Int] = []
 
-                let fullPath = "\(musicBase)/\(track.file)"
-                if let result = await DR14Analyzer.analyze(filePath: fullPath) {
-                    trackDRs.append(result.dr)
-                    anyComputed = true
-                    let dr = result.dr
-                    await MainActor.run { [weak self] in
-                        guard let self,
-                              albumIdx < self.albums.count,
-                              trackIdx < self.albums[albumIdx].tracks.count else { return }
-                        self.albums[albumIdx].tracks[trackIdx].dr = dr
-                    }
-                }
+        for (trackIdx, track) in album.tracks.enumerated() {
+            if let dr = track.dr {
+                trackDRs.append(dr)
+                continue
             }
 
-            if anyComputed, let avgDR = DR14Analyzer.albumDR(trackDRs: trackDRs) {
+            let fullPath = "\(musicBase)/\(track.file)"
+            if let result = await DR14Analyzer.analyze(filePath: fullPath) {
+                trackDRs.append(result.dr)
+                let dr = result.dr
                 await MainActor.run { [weak self] in
-                    guard let self, albumIdx < self.albums.count else { return }
-                    if self.albums[albumIdx].avgDR == nil {
-                        self.albums[albumIdx].avgDR = avgDR
-                    }
+                    guard let self,
+                          albumIdx < self.albums.count,
+                          trackIdx < self.albums[albumIdx].tracks.count else { return }
+                    self.albums[albumIdx].tracks[trackIdx].dr = dr
                 }
+            }
+        }
+
+        if let avgDR = DR14Analyzer.albumDR(trackDRs: trackDRs) {
+            await MainActor.run { [weak self] in
+                guard let self, albumIdx < self.albums.count else { return }
+                self.albums[albumIdx].avgDR = avgDR
             }
         }
     }

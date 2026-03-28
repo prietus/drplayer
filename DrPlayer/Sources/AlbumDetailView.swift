@@ -7,6 +7,7 @@ struct AlbumDetailView: View {
     let currentAlbumTitle: String
     let onPlayAlbum: () -> Void
     let onEnqueueAlbum: () -> Void
+    let onStartRadio: () -> Void
     let onPlayTrack: (Int) -> Void
     let onEnqueueTrack: (Track) -> Void
     let onPlayFile: (String) -> Void
@@ -124,6 +125,13 @@ struct AlbumDetailView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
+
+                    Button(action: onStartRadio) {
+                        Label("Radio", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .help("Generar playlist basada en este album")
                 }
                 .padding(.top, 8)
 
