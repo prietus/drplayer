@@ -19,6 +19,24 @@ enum LastFMService {
 
     private static let baseURL = "https://ws.audioscrobbler.com/2.0"
 
+    /// Fetch tags for an album (returns genre-like tags)
+    static func fetchAlbumTags(artist: String, album: String) async -> [String] {
+        guard !apiKey.isEmpty else { return [] }
+        let artistEnc = artist.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let albumEnc = album.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlStr = "\(baseURL)?method=album.getinfo&artist=\(artistEnc)&album=\(albumEnc)&api_key=\(apiKey)&format=json"
+        guard let url = URL(string: urlStr) else { return [] }
+
+        guard let (data, response) = try? await URLSession.shared.data(from: url),
+              let http = response as? HTTPURLResponse, http.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let albumObj = json["album"] as? [String: Any],
+              let tagObj = albumObj["tags"] as? [String: Any],
+              let tagList = tagObj["tag"] as? [[String: Any]] else { return [] }
+
+        return tagList.compactMap { $0["name"] as? String }
+    }
+
     static func fetchArtist(name: String) async -> LastFMArtist? {
         guard !apiKey.isEmpty else { return nil }
 

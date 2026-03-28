@@ -177,7 +177,21 @@ class PlayerViewModel {
                 self.playlist = Self.parseTracks(pl)
             }
 
-            // DR14 scan is now on-demand per album, not at startup
+            // Enrich genres in background (rate-limited, cached)
+            Task.detached { [weak self] in
+                guard let self else { return }
+                let snapshot = await MainActor.run { self.albums }
+                await GenreEnricher.enrichAllAlbums(snapshot) { albumIdx, newGenres in
+                    await MainActor.run {
+                        guard albumIdx < self.albums.count else { return }
+                        var existing = Set(self.albums[albumIdx].genres.map { $0.lowercased() })
+                        for genre in newGenres where existing.insert(genre.lowercased()).inserted {
+                            self.albums[albumIdx].genres.append(genre)
+                        }
+                        self.albums[albumIdx].genres.sort()
+                    }
+                }
+            }
         } catch {
             await MainActor.run {
                 self.error = "Error cargando biblioteca"
@@ -297,6 +311,14 @@ class PlayerViewModel {
     func startRadio(from album: Album) async {
         radioContext = RadioEngine.contextFromAlbum(album)
         radioEnabled = true
+        // Play the seed album first, then add similar tracks
+        try? await mpd.command("clear")
+        for track in album.tracks {
+            try? await mpd.command("add \"\(track.file)\"")
+        }
+        try? await mpd.command("play")
+        await refreshPlaylist()
+        // Add radio tracks after the album
         await generateRadioQueue()
     }
 
