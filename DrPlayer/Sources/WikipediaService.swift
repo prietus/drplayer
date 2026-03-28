@@ -67,23 +67,38 @@ enum WikipediaService {
 
     /// Search Wikipedia for a topic — tries exact slug, then fuzzy search API
     static func search(query: String, lang: String = "en") async -> WikiSummary? {
+        // Check if this entire search was already resolved
+        let searchCacheKey = "wiki_search_\(lang)_\(query.lowercased())"
+        if let cachedSlug = MetadataCache.getString(searchCacheKey) {
+            if cachedSlug == "(none)" { return nil }
+            return await fetchFromWiki(lang: lang, slug: cachedSlug)
+        }
+
         // Try exact slug first
         let slug = query.replacingOccurrences(of: " ", with: "_")
         if let result = await fetchFromWiki(lang: lang, slug: slug) {
+            MetadataCache.setString(searchCacheKey, value: slug)
             return result
         }
         // Fuzzy: use Wikipedia Search API to find the correct title
         if let title = await searchTitle(query: query, lang: lang) {
             let fixedSlug = title.replacingOccurrences(of: " ", with: "_")
             if let result = await fetchFromWiki(lang: lang, slug: fixedSlug) {
+                MetadataCache.setString(searchCacheKey, value: fixedSlug)
                 return result
             }
         }
+        MetadataCache.setString(searchCacheKey, value: "(none)")
         return nil
     }
 
-    /// Use Wikipedia's search API to find the correct article title (handles case/spelling differences)
+    /// Use Wikipedia's search API to find the correct article title
     private static func searchTitle(query: String, lang: String) async -> String? {
+        let cacheKey = "wiki_title_\(lang)_\(query.lowercased())"
+        if let cached = MetadataCache.getString(cacheKey) {
+            return cached == "(none)" ? nil : cached
+        }
+
         let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlStr = "https://\(lang).wikipedia.org/w/api.php?action=query&list=search&srsearch=\(encoded)&format=json&srlimit=1"
         guard let url = URL(string: urlStr) else { return nil }
@@ -97,8 +112,12 @@ enum WikipediaService {
               let queryResult = json["query"] as? [String: Any],
               let results = queryResult["search"] as? [[String: Any]],
               let first = results.first,
-              let title = first["title"] as? String else { return nil }
+              let title = first["title"] as? String else {
+            MetadataCache.setString(cacheKey, value: "(none)")
+            return nil
+        }
 
+        MetadataCache.setString(cacheKey, value: title)
         return title
     }
 

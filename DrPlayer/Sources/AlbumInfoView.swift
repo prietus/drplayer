@@ -334,12 +334,50 @@ struct AlbumInfoView: View {
 
     // MARK: - Load
 
+    /// Clean album title for API searches:
+    /// "1974 Burn" → "Burn", "Machine Head [MQA-CD]" → "Machine Head",
+    /// "Perfect Strangers (P28P 25067)" → "Perfect Strangers"
+    private func cleanTitle(_ title: String) -> String {
+        var cleaned = title
+        // Remove leading year prefix: "1974 Burn" → "Burn"
+        if let range = cleaned.range(of: #"^\d{4}\s+"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+        // Remove trailing parenthesized content
+        while let range = cleaned.range(of: #"\s*\([^)]*\)\s*$"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+        // Remove trailing bracketed content
+        while let range = cleaned.range(of: #"\s*\[[^\]]*\]\s*$"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+        // Remove " - Remastered" etc
+        if let range = cleaned.range(of: #"\s*-\s*(remaster|deluxe|bonus).*$"#, options: [.regularExpression, .caseInsensitive]) {
+            cleaned.removeSubrange(range)
+        }
+        // Remove " - CD 1", " - Disc Two" etc
+        if let range = cleaned.range(of: #"\s*-\s*(CD|Disc)\s.*$"#, options: [.regularExpression, .caseInsensitive]) {
+            cleaned.removeSubrange(range)
+        }
+        return cleaned.trimmingCharacters(in: .whitespaces)
+    }
+
     private func loadInfo() async {
+        let cleanAlbum = cleanTitle(albumTitle)
+
+        // MusicBrainz: prefer direct lookup by ID
         async let mbRelease: MBRelease? = {
             if !musicbrainzAlbumId.isEmpty {
                 return await MusicBrainzService.fetchRelease(id: musicbrainzAlbumId)
             }
-            return await MusicBrainzService.searchRelease(artist: artist, album: albumTitle)
+            // Try clean title first, then original
+            if let r = await MusicBrainzService.searchRelease(artist: artist, album: cleanAlbum) {
+                return r
+            }
+            if cleanAlbum != albumTitle {
+                return await MusicBrainzService.searchRelease(artist: artist, album: albumTitle)
+            }
+            return nil
         }()
         async let mbArtist = MusicBrainzService.searchArtist(name: artist)
 
@@ -349,18 +387,18 @@ struct AlbumInfoView: View {
         release = rel
         artistInfo = art
 
-        // Wikipedia for album
+        // Wikipedia for album — use clean title
         if let slug = rel?.wikipediaSlug {
             albumWiki = await WikipediaService.fetchSummary(slug: slug)
         }
         if albumWiki == nil {
-            albumWiki = await WikipediaService.search(query: "\(albumTitle) \(artist) album")
+            albumWiki = await WikipediaService.search(query: "\(cleanAlbum) \(artist) album")
         }
         if albumWiki == nil {
-            albumWiki = await WikipediaService.search(query: "\(albumTitle) (\(artist) album)")
+            albumWiki = await WikipediaService.search(query: "\(cleanAlbum) (\(artist) album)")
         }
         if albumWiki == nil {
-            albumWiki = await WikipediaService.search(query: albumTitle)
+            albumWiki = await WikipediaService.search(query: cleanAlbum)
         }
 
         // Wikipedia for artist
@@ -371,7 +409,7 @@ struct AlbumInfoView: View {
             artistWiki = await WikipediaService.searchArtist(name: artist)
         }
 
-        // Discogs
+        // Discogs — use clean title
         if let catno = rel?.catalogNumber, !catno.isEmpty {
             discogs = await DiscogsService.searchByCatalog(catno)
         }
@@ -379,7 +417,7 @@ struct AlbumInfoView: View {
             discogs = await DiscogsService.searchByBarcode(barcode)
         }
         if discogs == nil {
-            discogs = await DiscogsService.search(artist: artist, album: albumTitle)
+            discogs = await DiscogsService.search(artist: artist, album: cleanAlbum)
         }
 
         loading = false
