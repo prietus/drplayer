@@ -19,6 +19,7 @@ enum GenreEnricher {
         }
 
         var newGenres: [String] = []
+        let cleanTitle = cleanAlbumTitle(album.title)
 
         // 1. MusicBrainz: direct lookup by album ID (fastest, most reliable)
         if !album.musicbrainzAlbumId.isEmpty {
@@ -28,7 +29,17 @@ enum GenreEnricher {
         }
 
         // 2. Last.fm album tags (good for subgenres like "progressive rock", "post-punk")
-        let lfmTags = await LastFMService.fetchAlbumTags(artist: album.artist, album: album.title)
+        // Try clean title first, then original if different
+        var lfmTags = await LastFMService.fetchAlbumTags(artist: album.artist, album: cleanTitle)
+        if lfmTags.isEmpty && cleanTitle != album.title {
+            lfmTags = await LastFMService.fetchAlbumTags(artist: album.artist, album: album.title)
+        }
+        // 3. Fallback: Last.fm artist tags (broader but better than nothing)
+        if lfmTags.isEmpty && newGenres.isEmpty {
+            if let artistInfo = await LastFMService.fetchArtist(name: album.artist) {
+                lfmTags = artistInfo.tags
+            }
+        }
         newGenres.append(contentsOf: lfmTags)
 
         // Deduplicate and normalize
@@ -80,6 +91,34 @@ enum GenreEnricher {
             try? await Task.sleep(for: .seconds(1))
         }
         await progress(total, total)
+    }
+
+    /// Clean album title for API searches:
+    /// "1974 Burn" → "Burn", "Machine Head [MQA-CD]" → "Machine Head"
+    private static func cleanAlbumTitle(_ title: String) -> String {
+        var cleaned = title
+
+        // Remove leading year prefix: "1974 Burn" → "Burn"
+        if let range = cleaned.range(of: #"^\d{4}\s+"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+
+        // Remove trailing parenthesized content: "(UICY-40261)", "(Remastered 2011)"
+        while let range = cleaned.range(of: #"\s*\([^)]*\)\s*$"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+
+        // Remove trailing bracketed content: "[MQA-CD]", "[Deluxe Edition]"
+        while let range = cleaned.range(of: #"\s*\[[^\]]*\]\s*$"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+
+        // Remove " - Remastered" suffix
+        if let range = cleaned.range(of: #"\s*-\s*remaster.*$"#, options: [.regularExpression, .caseInsensitive]) {
+            cleaned.removeSubrange(range)
+        }
+
+        return cleaned.trimmingCharacters(in: .whitespaces)
     }
 
     /// Count how many albums are already cached
