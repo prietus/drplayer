@@ -46,6 +46,12 @@ class PlayerViewModel {
     var radioEnabled = false
     var radioContext: RadioEngine.SeedContext?
 
+    // Background task progress
+    var genreEnrichProgress: (done: Int, total: Int) = (0, 0)
+    var genreEnrichRunning = false
+    var dr14CacheCount = 0
+    var waveformCacheCount = 0
+
     private var mpd: MPDClient
     private var timer: Timer?
     private var outputPollCounter = 0
@@ -180,8 +186,9 @@ class PlayerViewModel {
             // Enrich genres in background (rate-limited, cached)
             Task.detached { [weak self] in
                 guard let self else { return }
+                await MainActor.run { self.genreEnrichRunning = true }
                 let snapshot = await MainActor.run { self.albums }
-                await GenreEnricher.enrichAllAlbums(snapshot) { albumIdx, newGenres in
+                await GenreEnricher.enrichAllAlbums(snapshot, update: { albumIdx, newGenres in
                     await MainActor.run {
                         guard albumIdx < self.albums.count else { return }
                         var existing = Set(self.albums[albumIdx].genres.map { $0.lowercased() })
@@ -190,6 +197,15 @@ class PlayerViewModel {
                         }
                         self.albums[albumIdx].genres.sort()
                     }
+                }, progress: { done, total in
+                    await MainActor.run {
+                        self.genreEnrichProgress = (done, total)
+                    }
+                })
+                await MainActor.run {
+                    self.genreEnrichRunning = false
+                    self.dr14CacheCount = (try? FileManager.default.contentsOfDirectory(atPath: NSHomeDirectory() + "/.drplayer/dr14").count) ?? 0
+                    self.waveformCacheCount = (try? FileManager.default.contentsOfDirectory(atPath: NSHomeDirectory() + "/.drplayer/waveforms").count) ?? 0
                 }
             }
         } catch {

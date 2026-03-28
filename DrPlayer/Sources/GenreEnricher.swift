@@ -50,8 +50,15 @@ enum GenreEnricher {
     }
 
     /// Enrich all albums in background. Rate-limited to avoid API hammering.
-    static func enrichAllAlbums(_ albums: [Album], update: @escaping (Int, [String]) async -> Void) async {
+    static func enrichAllAlbums(
+        _ albums: [Album],
+        update: @escaping (Int, [String]) async -> Void,
+        progress: @escaping (Int, Int) async -> Void
+    ) async {
+        let total = albums.count
         for (idx, album) in albums.enumerated() {
+            await progress(idx, total)
+
             // Skip if already has rich genre data (3+ genres)
             if album.genres.count >= 3 { continue }
 
@@ -72,6 +79,12 @@ enum GenreEnricher {
             // Rate limit: 1 second between API calls
             try? await Task.sleep(for: .seconds(1))
         }
+        await progress(total, total)
+    }
+
+    /// Count how many albums are already cached
+    static var cachedCount: Int {
+        (try? FileManager.default.contentsOfDirectory(atPath: cacheDir).count) ?? 0
     }
 
     // MARK: - Cache

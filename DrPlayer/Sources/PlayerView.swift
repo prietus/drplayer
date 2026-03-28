@@ -426,6 +426,8 @@ struct NowPlayingBar: View {
                         .foregroundColor(vm.radioEnabled ? .green : .primary)
                 }
                 .help(vm.radioEnabled ? "Radio activa — click para desactivar" : "Iniciar radio basada en lo que suena")
+
+                BackgroundTasksIndicator(vm: vm)
             }
             .font(.title3)
             .buttonStyle(.plain)
