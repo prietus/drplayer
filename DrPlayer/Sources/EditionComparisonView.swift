@@ -11,6 +11,7 @@ struct EditionComparisonView: View {
     let preferredFiles: Set<String>
     let onBack: () -> Void
     var onScanDR: ((Int) async -> Void)? = nil
+    var onSelectLabel: ((String) -> Void)? = nil
 
     @State private var loudnessWarEntries: [LoudnessWarEntry] = []
     @State private var loudnessWarLoading = false
@@ -235,10 +236,20 @@ struct EditionComparisonView: View {
                                         .font(.caption2)
                                         .foregroundStyle(.tertiary)
                                         .frame(width: 80, alignment: .trailing)
-                                    Text(detail.value)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                        .textSelection(.enabled)
+                                    if detail.label == "Label", let onSelectLabel {
+                                        Button { onSelectLabel(detail.value) } label: {
+                                            Text(detail.value)
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+                                    } else {
+                                        Text(detail.value)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                            .textSelection(.enabled)
+                                    }
                                 }
                             }
                         }

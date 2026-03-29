@@ -73,7 +73,8 @@ struct AlbumDetailView: View {
                 onSetPreferred: onSetPreferred,
                 preferredFiles: preferredFiles,
                 onBack: { showEditionComparison = false },
-                onScanDR: onScanDR
+                onScanDR: onScanDR,
+                onSelectLabel: onSelectLabel
             )
         } else {
         ScrollView {
