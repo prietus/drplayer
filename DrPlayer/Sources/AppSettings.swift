@@ -187,6 +187,13 @@ class AppSettings {
 
     // MARK: - mpd.conf parsing
 
+    struct MPDOutput {
+        let name: String
+        let type: String
+        let device: String?
+        let mixerType: String?
+    }
+
     struct MPDConf {
         var musicDir: String?
         var host: String?
@@ -198,6 +205,7 @@ class AppSettings {
         var replaygain: String?
         var autoUpdate: Bool = false
         var dbFile: String?
+        var outputs: [MPDOutput] = []
     }
 
     /// Auto-detect settings from mpd.conf
@@ -238,7 +246,54 @@ class AppSettings {
                 conf.dbFile = expandPath(val)
             }
         }
+        // Parse audio_output blocks
+        conf.outputs = parseAudioOutputs(content)
+
         return conf.musicDir != nil ? conf : nil
+    }
+
+    /// Parse audio_output { ... } blocks from mpd.conf content
+    private static func parseAudioOutputs(_ content: String) -> [MPDOutput] {
+        var outputs: [MPDOutput] = []
+        let pattern = #"audio_output\s*\{([^}]*)\}"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .dotMatchesLineSeparators) else { return [] }
+        let range = NSRange(content.startIndex..., in: content)
+        for match in regex.matches(in: content, range: range) {
+            guard let blockRange = Range(match.range(at: 1), in: content) else { continue }
+            let block = String(content[blockRange])
+
+            var name = "", type = "", device: String?, mixerType: String?
+            for line in block.components(separatedBy: "\n") {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if let val = extractValue(line: trimmed, key: "name") { name = val }
+                else if let val = extractValue(line: trimmed, key: "type") { type = val }
+                else if let val = extractValue(line: trimmed, key: "device") { device = val }
+                else if let val = extractValue(line: trimmed, key: "mixer_type") { mixerType = val }
+            }
+            if !name.isEmpty {
+                outputs.append(MPDOutput(name: name, type: type, device: device, mixerType: mixerType))
+            }
+        }
+        return outputs
+    }
+
+    /// Add an audio_output block to mpd.conf for a detected DAC
+    static func addAudioOutput(name: String, device: String) throws {
+        guard let confPath = detectFromMPDConf().confPath else {
+            throw NSError(domain: "DrPlayer", code: 1, userInfo: [NSLocalizedDescriptionKey: "mpd.conf not found"])
+        }
+        var content = try String(contentsOfFile: confPath, encoding: .utf8)
+        let block = """
+
+        audio_output {
+            type            "osx"
+            name            "\(name)"
+            device          "\(device)"
+            mixer_type      "none"
+        }
+        """
+        content += "\n" + block
+        try content.write(toFile: confPath, atomically: true, encoding: .utf8)
     }
 
     private static func extractValue(line: String, key: String) -> String? {

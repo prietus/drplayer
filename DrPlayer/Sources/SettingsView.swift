@@ -352,6 +352,9 @@ private struct AudioOutputsTab: View {
     @State private var outputs: [MPDClient.AudioOutput] = []
     @State private var devices: [AudioDeviceInfo] = []
     @State private var loading = true
+    @State private var mpdConf: AppSettings.MPDConf?
+    @State private var addError: String?
+    @State private var needsRestart = false
 
     var body: some View {
         ScrollView {
@@ -390,6 +393,23 @@ private struct AudioOutputsTab: View {
                     }
                 }
 
+                if needsRestart {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text("Restart MPD to apply changes: `brew services restart mpd`")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                            .textSelection(.enabled)
+                    }
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(.orange.opacity(0.1)))
+                }
+
+                if let err = addError {
+                    Text(err).font(.caption).foregroundColor(.red)
+                }
+
                 Text("Outputs are defined in mpd.conf. From here you can only enable or disable them.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
@@ -398,6 +418,7 @@ private struct AudioOutputsTab: View {
         }
         .task {
             devices = CoreAudioDevices.listOutputDevices()
+            mpdConf = AppSettings.detectFromMPDConf()
             await loadOutputs()
         }
     }
@@ -480,9 +501,46 @@ private struct AudioOutputsTab: View {
                 }
             }
             .padding(.leading, 36)
+
+            // "Add to MPD" button if USB device not yet in mpd.conf
+            if device.transport == "USB",
+               let conf = mpdConf,
+               !conf.outputs.contains(where: { $0.device == device.name || $0.name == device.name }) {
+                Button {
+                    addDeviceToMPD(device)
+                } label: {
+                    Label("Add to mpd.conf", systemImage: "plus.circle")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .padding(.leading, 36)
+            } else if device.transport == "USB",
+                      let conf = mpdConf,
+                      conf.outputs.contains(where: { $0.device == device.name || $0.name == device.name }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("Configured in mpd.conf")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.leading, 36)
+            }
         }
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)))
+    }
+
+    private func addDeviceToMPD(_ device: AudioDeviceInfo) {
+        addError = nil
+        do {
+            try AppSettings.addAudioOutput(name: device.name, device: device.name)
+            mpdConf = AppSettings.detectFromMPDConf()
+            needsRestart = true
+        } catch {
+            addError = error.localizedDescription
+        }
     }
 
     private func detailLabel(_ text: String) -> some View {
