@@ -16,6 +16,7 @@ struct PlayerView: View {
     enum BrowseMode: String, CaseIterable {
         case albums = "Albums"
         case artists = "Artists"
+        case labels = "Labels"
         case tracks = "Tracks"
         case composers = "Composers"
     }
@@ -68,14 +69,12 @@ struct PlayerView: View {
             // Now playing bar
             NowPlayingBar(vm: vm, showSearch: $showSearch, showLyrics: $showLyrics, showQueue: $showQueue, onTapCover: { showFullPlayer = true }, onTapAlbum: {
                 // Navigate to the album of the currently playing track
-                // Try matching by current file first (most precise)
-                if let currentFile = vm.playlist.first(where: { $0.pos == vm.currentPos })?.file,
-                   let album = vm.albums.first(where: { $0.tracks.contains(where: { $0.file == currentFile }) }) {
-                    selectedAlbum = album
-                } else if let album = vm.albums.first(where: { $0.title == vm.currentAlbum && $0.artist == vm.currentArtist }) {
-                    selectedAlbum = album
-                } else if let album = vm.albums.first(where: { $0.title == vm.currentAlbum }) {
-                    selectedAlbum = album
+                if let album = vm.currentPlayingAlbum {
+                    Task {
+                        var a = album
+                        await vm.loadFavorites(for: &a)
+                        selectedAlbum = a
+                    }
                 }
             })
 
@@ -160,6 +159,25 @@ struct PlayerView: View {
                                     }
                                 },
                                 scrollToAlbumId: lastAlbumId
+                            )
+                        case .labels:
+                            LabelListView(
+                                labels: vm.allLabels,
+                                onSelectLabel: { label in
+                                    albumFilter = .label(label.name)
+                                    browseMode = .albums
+                                    if let first = label.albums.first {
+                                        lastAlbumId = first.id
+                                        Task {
+                                            var a = first
+                                            await vm.loadFavorites(for: &a)
+                                            selectedAlbum = a
+                                        }
+                                    }
+                                },
+                                onPlayFile: { file in
+                                    Task { await vm.enqueueAndPlay(file: file) }
+                                }
                             )
                         case .artists:
                             ArtistListView(
@@ -270,6 +288,7 @@ struct PlayerView: View {
                             await vm.scanDR14ForAlbum(albumIdx: albumIdx)
                         }
                     )
+                    .id(album.id)
                     .opacity(showSearch ? 0 : 1)
                     .allowsHitTesting(!showSearch)
                 }

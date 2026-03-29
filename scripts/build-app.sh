@@ -63,6 +63,9 @@ if [ -f "$PROJECT_DIR/dist/DrPlayer.app/Contents/Resources/AppIcon.icns" ]; then
     cp "$PROJECT_DIR/dist/DrPlayer.app/Contents/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/"
 fi
 
+# Ad-hoc code sign (avoids "damaged app" on quarantined downloads)
+codesign --deep --force --sign - "$APP_DIR"
+
 # Create DMG
 DMG_PATH="$DIST_DIR/DrPlayer-$VERSION.dmg"
 rm -f "$DMG_PATH"

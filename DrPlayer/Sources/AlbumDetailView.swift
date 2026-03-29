@@ -449,80 +449,9 @@ struct AlbumDetailView: View {
                 .foregroundStyle(.secondary)
 
             ForEach(editions, id: \.id) { edition in
-                HStack(spacing: 10) {
-                    // Cover thumbnail
-                    Group {
-                        if let img = otherEditionCovers[edition.id] {
-                            Image(nsImage: img)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } else {
-                            Rectangle()
-                                .fill(.quaternary)
-                                .overlay {
-                                    Image(systemName: "music.note")
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
-                                }
-                        }
-                    }
-                    .frame(width: 40, height: 40)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .task {
-                        let e = edition
-                        let img = await e.coverImageAsync()
-                        if let img { otherEditionCovers[edition.id] = img }
-                    }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(edition.title)
-                            .font(.callout)
-                            .lineLimit(1)
-                        HStack(spacing: 6) {
-                            if !edition.format.isEmpty {
-                                Text(edition.format)
-                                    .font(.caption2.monospaced().bold())
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(RoundedRectangle(cornerRadius: 3).fill(.blue.opacity(0.15)))
-                                    .foregroundColor(.blue)
-                            }
-                            if !edition.date.isEmpty {
-                                Text(edition.date)
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            if let dr = edition.avgDR, dr > 0 {
-                                Text("DR\(dr)")
-                                    .font(.caption2.bold().monospaced())
-                                    .foregroundColor(drColor(dr))
-                            }
-                            Text("\(edition.tracks.count) tracks")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-
-                    Spacer()
-
-                    Button {
-                        onPlayFile(edition.tracks.first?.file ?? "")
-                    } label: {
-                        Image(systemName: "play.circle")
-                            .font(.title3)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .help("Play this edition")
-                }
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)))
-                .onTapGesture {
-                    // Navigate to this edition
-                    // We can reuse the current view by swapping album
+                Button {
                     album = edition
                     selectedTrack = nil
-                    // Reload cover
                     Task {
                         let a = edition
                         cover = await a.coverImageAsync()
@@ -530,8 +459,81 @@ struct AlbumDetailView: View {
                         artworkPaths = paths
                         artworkCount = paths.count
                     }
+                } label: {
+                    HStack(spacing: 10) {
+                        // Cover thumbnail
+                        Group {
+                            if let img = otherEditionCovers[edition.id] {
+                                Image(nsImage: img)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } else {
+                                Rectangle()
+                                    .fill(.quaternary)
+                                    .overlay {
+                                        Image(systemName: "music.note")
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                            }
+                        }
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .task {
+                            let e = edition
+                            let img = await e.coverImageAsync()
+                            if let img { otherEditionCovers[edition.id] = img }
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(edition.title)
+                                .font(.callout)
+                                .lineLimit(1)
+                            HStack(spacing: 6) {
+                                if !edition.format.isEmpty {
+                                    Text(edition.format)
+                                        .font(.caption2.monospaced().bold())
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1)
+                                        .background(RoundedRectangle(cornerRadius: 3).fill(.blue.opacity(0.15)))
+                                        .foregroundColor(.blue)
+                                }
+                                if !edition.date.isEmpty {
+                                    Text(edition.date)
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                if let dr = edition.avgDR, dr > 0 {
+                                    Text("DR\(dr)")
+                                        .font(.caption2.bold().monospaced())
+                                        .foregroundColor(drColor(dr))
+                                }
+                                Text("\(edition.tracks.count) tracks")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+
+                        Spacer()
+                    }
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)))
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+                .overlay(alignment: .trailing) {
+                    Button {
+                        onPlayFile(edition.tracks.first?.file ?? "")
+                    } label: {
+                        Image(systemName: "play.circle")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Play this edition")
+                    .padding(.trailing, 8)
+                }
             }
         }
     }

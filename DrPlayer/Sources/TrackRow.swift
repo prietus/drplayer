@@ -20,41 +20,40 @@ struct TrackRow: View {
     @State private var showDRComparison = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Play button
-            Button(action: onPlay) {
+        Button(action: onTap) {
+            HStack(spacing: 8) {
+                // Play button
                 Image(systemName: isCurrentTrack ? "speaker.wave.2.fill" : "play.circle")
                     .font(.caption)
                     .foregroundColor(isCurrentTrack ? .accentColor : .gray)
                     .frame(width: 20)
+                    .onTapGesture(perform: onPlay)
+
+                // Track number
+                trackNumber
+
+                // Title + artist
+                titleAndArtist
+
+                Spacer()
+
+                // Versions badge
+                versionsBadge
+
+                // Queue button
+                enqueueButton
+                // DR badge
+                drBadge
+                // Favorite
+                favoriteButton
+                // Duration
+                durationLabel
             }
-            .buttonStyle(.plain)
-            .help("Play")
-
-            // Track number
-            trackNumber
-
-            // Title + artist
-            titleAndArtist
-
-            Spacer()
-
-            // Versions badge
-            versionsBadge
-
-            // Queue button
-            enqueueButton
-            // DR badge
-            drBadge
-            // Favorite
-            favoriteButton
-            // Duration
-            durationLabel
+            .padding(.horizontal)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal)
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
+        .buttonStyle(.plain)
         .background(isCurrentTrack ? Color.accentColor.opacity(0.08) : Color.clear)
     }
 

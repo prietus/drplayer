@@ -30,6 +30,7 @@ class PlayerViewModel {
     var currentTitle = "---"
     var currentArtist = ""
     var currentAlbum = ""
+    var currentFile = ""
     var state = "stop"
     var playlist: [Track] = []
     var albums: [Album] = []
@@ -63,6 +64,21 @@ class PlayerViewModel {
     private var outputPollCounter = 0
     private var lastSampleRate: Double = 0
     private var isSwitchingRate = false
+
+    /// The album containing the currently playing track
+    var currentPlayingAlbum: Album? {
+        // Match by file path (most precise)
+        if !currentFile.isEmpty,
+           let album = albums.first(where: { $0.tracks.contains(where: { $0.file == currentFile }) }) {
+            return album
+        }
+        // Fallback: match by album title + artist
+        if let album = albums.first(where: { $0.title == currentAlbum && $0.artist == currentArtist }) {
+            return album
+        }
+        // Fallback: match by album title only
+        return albums.first(where: { $0.title == currentAlbum })
+    }
 
     private var dbRebuildObserver: Any?
 
@@ -148,6 +164,7 @@ class PlayerViewModel {
                 self.currentTitle = song["Title"] ?? song["file"] ?? "---"
                 self.currentArtist = song["Artist"] ?? ""
                 self.currentAlbum = song["Album"] ?? ""
+                self.currentFile = song["file"] ?? ""
                 self.currentPos = Int(song["Pos"] ?? "")
                 self.audioFormat = status["audio"] ?? ""
                 self.elapsed = Double(status["elapsed"] ?? "") ?? 0
@@ -751,6 +768,35 @@ class PlayerViewModel {
         s.lowercased()
             .folding(options: .diacriticInsensitive, locale: .current)
             .precomposedStringWithCanonicalMapping
+    }
+
+    struct LabelInfo: Identifiable {
+        let id: String  // normalized name
+        let name: String
+        let albumCount: Int
+        let trackCount: Int
+        let albums: [Album]
+    }
+
+    var allLabels: [LabelInfo] {
+        var map: [String: (name: String, albums: Set<String>, albumList: [Album], trackCount: Int)] = [:]
+        for album in albums {
+            let label = album.label.isEmpty ? "Unknown" : album.label
+            let key = Self.normalizeForGrouping(label)
+            if map[key] == nil {
+                map[key] = (name: label, albums: [], albumList: [], trackCount: 0)
+            }
+            if !map[key]!.albums.contains(album.id) {
+                map[key]!.albums.insert(album.id)
+                map[key]!.albumList.append(album)
+            }
+            map[key]!.trackCount += album.tracks.count
+        }
+        return map.map { key, info in
+            LabelInfo(id: key, name: info.name, albumCount: info.albums.count,
+                      trackCount: info.trackCount, albums: info.albumList)
+        }
+        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     var allArtists: [ArtistInfo] {
