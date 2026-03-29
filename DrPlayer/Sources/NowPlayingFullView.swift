@@ -27,17 +27,8 @@ struct NowPlayingFullView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Background: artwork
-            backgroundImage
-                .ignoresSafeArea()
-
-            // Dark overlay for readability
-            Color.black.opacity(0.5)
-                .ignoresSafeArea()
-
-            // Content
-            VStack(spacing: 0) {
+        // Content
+        VStack(spacing: 0) {
                 // Close button - always visible
                 HStack {
                     Button(action: onDismiss) {
@@ -75,9 +66,15 @@ struct NowPlayingFullView: View {
                 // Bottom: song info + progress
                 bottomBar
                     .padding()
-            }
         }
-        .ignoresSafeArea()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            ZStack {
+                backgroundImage
+                Color.black.opacity(0.5)
+            }
+            .ignoresSafeArea()
+        }
         .onAppear { startImageCycling() }
         .onDisappear { imageTimer?.invalidate() }
         .onChange(of: vm.currentTitle) {

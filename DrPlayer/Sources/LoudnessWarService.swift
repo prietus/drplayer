@@ -19,15 +19,27 @@ struct LoudnessWarEntry: Identifiable {
 enum LoudnessWarService {
     private static let baseURL = "https://dr.loudness-war.info/album/list"
 
-    /// Clean album title: remove parenthesized catalog numbers, bracketed suffixes, etc.
+    /// Clean album title: remove year prefixes, parenthesized catalog numbers, bracketed suffixes, etc.
     private static func cleanAlbumTitle(_ title: String) -> String {
         var cleaned = title
+        // Remove leading year prefix: "1972 Demons and Wizards" → "Demons and Wizards"
+        if let range = cleaned.range(of: #"^\d{4}\s+"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
         // Remove trailing parenthesized content like (UICY-40261), (Remastered 2011)
         while let range = cleaned.range(of: #"\s*\([^)]*\)\s*$"#, options: .regularExpression) {
             cleaned.removeSubrange(range)
         }
         // Remove trailing bracketed content like [Deluxe Edition]
         while let range = cleaned.range(of: #"\s*\[[^\]]*\]\s*$"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+        // Remove " - Remastered" etc
+        if let range = cleaned.range(of: #"\s*-\s*(remaster|deluxe|bonus).*$"#, options: [.regularExpression, .caseInsensitive]) {
+            cleaned.removeSubrange(range)
+        }
+        // Remove " - CD 1", " - Disc Two" etc
+        if let range = cleaned.range(of: #"\s*-\s*(CD|Disc)\s.*$"#, options: [.regularExpression, .caseInsensitive]) {
             cleaned.removeSubrange(range)
         }
         return cleaned.trimmingCharacters(in: .whitespaces)

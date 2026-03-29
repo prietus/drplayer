@@ -33,6 +33,11 @@ struct AlbumDetailView: View {
         currentAlbumTitle == album.title
     }
 
+    /// Live tracks from ViewModel (updates reactively when DR is analyzed)
+    private var liveTracks: [Track] {
+        allAlbums.first(where: { $0.id == album.id })?.tracks ?? album.tracks
+    }
+
     var body: some View {
         if let track = selectedTrack {
             TrackDetailView(
@@ -114,6 +119,12 @@ struct AlbumDetailView: View {
         }
         .task(id: album.id) {
             await loadReleaseInfo()
+        }
+        .task(id: album.id) {
+            // Auto-scan DR for all tracks when opening an album
+            if let onScanDR, let idx = allAlbums.firstIndex(where: { $0.id == album.id }) {
+                await onScanDR(idx)
+            }
         }
         } // end else
     }
@@ -583,8 +594,9 @@ struct AlbumDetailView: View {
     // MARK: - Track List
 
     private var trackList: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(album.tracks.enumerated()), id: \.element.id) { idx, track in
+        let tracks = liveTracks
+        return VStack(spacing: 0) {
+            ForEach(Array(tracks.enumerated()), id: \.element.id) { idx, track in
                 TrackRow(
                     track: track,
                     index: idx,
@@ -606,7 +618,7 @@ struct AlbumDetailView: View {
                     onEnqueue: { onEnqueueTrack(track) }
                 )
 
-                if idx < album.tracks.count - 1 {
+                if idx < tracks.count - 1 {
                     Divider()
                         .padding(.leading, 52)
                 }
