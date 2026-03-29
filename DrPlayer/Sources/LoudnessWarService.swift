@@ -60,16 +60,12 @@ enum LoudnessWarService {
     /// Search for DR entries of an album on dr.loudness-war.info
     static func search(artist: String, album: String) async -> [LoudnessWarEntry] {
         let cleanedAlbum = cleanAlbumTitle(album)
-        let params = [
-            "artist": artist,
-            "album": cleanedAlbum
+        var components = URLComponents(string: baseURL)!
+        components.queryItems = [
+            URLQueryItem(name: "artist", value: artist),
+            URLQueryItem(name: "album", value: cleanedAlbum)
         ]
-        var allowed = CharacterSet.urlQueryAllowed
-        allowed.remove(charactersIn: "'+&=")
-        let query = params.map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")" }
-            .joined(separator: "&")
-        let urlStr = "\(baseURL)?\(query)"
-        guard let url = URL(string: urlStr) else { return [] }
+        guard let url = components.url else { return [] }
 
         var request = URLRequest(url: url)
         request.setValue("DrPlayer/1.0 (music player)", forHTTPHeaderField: "User-Agent")
