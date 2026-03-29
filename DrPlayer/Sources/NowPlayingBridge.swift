@@ -7,8 +7,9 @@ import AppKit
 final class NowPlayingBridge {
     static let shared = NowPlayingBridge()
 
-    private var lastFile = ""
     private var commandsRegistered = false
+    private var cachedArtwork: MPMediaItemArtwork?
+    private var cachedFile = ""
 
     private init() {}
 
@@ -84,9 +85,16 @@ final class NowPlayingBridge {
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
         ]
 
-        // Set artwork if available and track changed
-        if let image = coverImage {
-            let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        // Cache artwork on track change, reuse on subsequent updates
+        if file != cachedFile {
+            cachedFile = file
+            if let image = coverImage {
+                cachedArtwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+            } else {
+                cachedArtwork = nil
+            }
+        }
+        if let artwork = cachedArtwork {
             info[MPMediaItemPropertyArtwork] = artwork
         }
 
@@ -98,5 +106,7 @@ final class NowPlayingBridge {
     func clear() {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         MPNowPlayingInfoCenter.default().playbackState = .stopped
+        cachedArtwork = nil
+        cachedFile = ""
     }
 }
