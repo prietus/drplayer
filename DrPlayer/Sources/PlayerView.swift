@@ -68,7 +68,11 @@ struct PlayerView: View {
             // Now playing bar
             NowPlayingBar(vm: vm, showSearch: $showSearch, showLyrics: $showLyrics, showQueue: $showQueue, onTapCover: { showFullPlayer = true }, onTapAlbum: {
                 // Navigate to the album of the currently playing track
-                if let album = vm.albums.first(where: { $0.title == vm.currentAlbum && $0.artist == vm.currentArtist }) {
+                // Try matching by current file first (most precise)
+                if let currentFile = vm.playlist.first(where: { $0.pos == vm.currentPos })?.file,
+                   let album = vm.albums.first(where: { $0.tracks.contains(where: { $0.file == currentFile }) }) {
+                    selectedAlbum = album
+                } else if let album = vm.albums.first(where: { $0.title == vm.currentAlbum && $0.artist == vm.currentArtist }) {
                     selectedAlbum = album
                 } else if let album = vm.albums.first(where: { $0.title == vm.currentAlbum }) {
                     selectedAlbum = album
