@@ -57,17 +57,19 @@ enum MusicBrainzService {
         return await fetchRelease(id: releaseId)
     }
 
-    /// Search by artist + album title, optionally preferring a format (e.g. "SACD", "Vinyl")
-    static func searchRelease(artist: String, album: String, format: String? = nil) async -> MBRelease? {
-        let formatSuffix = format.map { "_fmt_\($0.lowercased())" } ?? ""
-        let searchCacheKey = "mb_search_release_\(artist.lowercased())_\(album.lowercased())\(formatSuffix)"
+    /// Search by artist + album title, optionally preferring a format and/or country
+    static func searchRelease(artist: String, album: String, format: String? = nil, country: String? = nil) async -> MBRelease? {
+        let hintSuffix = [format.map { "fmt_\($0)" }, country.map { "cc_\($0)" }]
+            .compactMap { $0 }.joined(separator: "_").lowercased()
+        let searchCacheKey = "mb_search_release_\(artist.lowercased())_\(album.lowercased())" + (hintSuffix.isEmpty ? "" : "_\(hintSuffix)")
         if let cachedId = MetadataCache.getString(searchCacheKey) {
             return cachedId == "(none)" ? nil : await fetchRelease(id: cachedId)
         }
 
         let query = "release:\(album) AND artist:\(artist)"
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let limit = format != nil ? 25 : 5
+        let hasHints = format != nil || country != nil
+        let limit = hasHints ? 25 : 5
         let urlStr = "\(baseURL)/release/?query=\(query)&fmt=json&limit=\(limit)"
         guard let url = URL(string: urlStr) else { return nil }
 
@@ -79,20 +81,25 @@ enum MusicBrainzService {
             return nil
         }
 
-        // If format hint given, try to find a matching release
-        var releaseId = releases.first?["id"] as? String ?? ""
-        if let format {
-            let formatLower = format.lowercased()
+        // Try to find a release matching format and/or country hints
+        let defaultId = releases.first?["id"] as? String ?? ""
+        var releaseId = defaultId
+        if hasHints {
+            let formatLower = format?.lowercased()
+            let countryUpper = country?.uppercased()
+
             for rel in releases {
+                let relCountry = rel["country"] as? String ?? ""
                 let media = rel["media"] as? [[String: Any]] ?? []
-                for medium in media {
-                    let mediaFormat = (medium["format"] as? String ?? "").lowercased()
-                    if mediaFormat.contains(formatLower) {
-                        releaseId = rel["id"] as? String ?? releaseId
-                        break
-                    }
+                let mediaFormats = media.compactMap { ($0["format"] as? String)?.lowercased() }
+
+                let formatMatch = formatLower == nil || mediaFormats.contains(where: { $0.contains(formatLower!) })
+                let countryMatch = countryUpper == nil || relCountry.uppercased() == countryUpper
+
+                if formatMatch && countryMatch {
+                    releaseId = rel["id"] as? String ?? defaultId
+                    break
                 }
-                if releaseId != (releases.first?["id"] as? String ?? "") { break }
             }
         }
 

@@ -402,20 +402,24 @@ struct AlbumInfoView: View {
         return nil
     }
 
-    /// Detect MusicBrainz format hint from album title keywords or file format
-    private func detectFormatHint(_ title: String) -> String? {
+    /// Detect MusicBrainz format/country hints from album title keywords
+    private func detectHints(_ title: String) -> (format: String?, country: String?) {
         let lower = title.lowercased()
-        if lower.contains("sacd") || lower.contains("shm-sacd") || lower.contains("shm sacd") { return "SACD" }
-        if lower.contains("vinyl") || lower.contains("lp") { return "Vinyl" }
-        return nil
+        if lower.contains("shm-sacd") || lower.contains("shm sacd") { return ("sacd", "JP") }
+        if lower.contains("shm-cd") || lower.contains("shm cd") || lower.contains("uhqcd") ||
+           lower.contains("blu-spec") || lower.contains("hqcd") { return ("cd", "JP") }
+        if lower.contains("sacd") { return ("sacd", nil) }
+        if lower.contains("xrcd") || lower.contains("k2hd") { return (nil, "JP") }
+        if lower.contains("vinyl") || lower.contains("lp") { return ("Vinyl", nil) }
+        return (nil, nil)
     }
 
     private func loadInfo() async {
         let cleanAlbum = cleanTitle(albumTitle)
         let catalogFromTitle = extractCatalog(albumTitle)
-        let formatHint = detectFormatHint(albumTitle)
+        let hints = detectHints(albumTitle)
 
-        // MusicBrainz: prefer catalog number → MB ID → format-specific → generic
+        // MusicBrainz: prefer catalog number → MB ID → format/country-specific → generic
         async let mbRelease: MBRelease? = {
             // 1. Direct lookup by MusicBrainz ID (most precise)
             if !musicbrainzAlbumId.isEmpty {
@@ -427,9 +431,9 @@ struct AlbumInfoView: View {
                     return r
                 }
             }
-            // 3. Search by title + format hint (e.g. SACD for DSF files)
-            if let fmt = formatHint {
-                if let r = await MusicBrainzService.searchRelease(artist: artist, album: cleanAlbum, format: fmt) {
+            // 3. Search by title + format/country hints (e.g. SHM-CD → JP)
+            if hints.format != nil || hints.country != nil {
+                if let r = await MusicBrainzService.searchRelease(artist: artist, album: cleanAlbum, format: hints.format, country: hints.country) {
                     return r
                 }
             }
