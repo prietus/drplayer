@@ -20,6 +20,7 @@ struct Track: Identifiable {
     let originalDate: String
     let musicbrainzTrackId: String
     let musicbrainzAlbumId: String
+    let country: String
     var isFavorite: Bool = false
     var dr: Int? = nil
 }
@@ -667,7 +668,8 @@ class PlayerViewModel {
             label: dict["Label"] ?? "",
             originalDate: dict["OriginalDate"] ?? "",
             musicbrainzTrackId: dict["MUSICBRAINZ_TRACKID"] ?? "",
-            musicbrainzAlbumId: dict["MUSICBRAINZ_ALBUMID"] ?? ""
+            musicbrainzAlbumId: dict["MUSICBRAINZ_ALBUMID"] ?? "",
+            country: dict["RELEASECOUNTRY"] ?? ""
         )
     }
 

@@ -23,6 +23,7 @@ struct TrackDetailView: View {
     let onEnqueue: () -> Void
     let onPlayFile: (String) -> Void
     let onDismiss: () -> Void
+    var onSelectAlbum: ((Album) -> Void)? = nil
     @State private var metadata: TrackMetadata?
     @State private var loading = true
 
@@ -186,9 +187,21 @@ struct TrackDetailView: View {
         .padding(.horizontal)
     }
 
+    /// Tags to hide from the UI (internal/technical IDs)
+    private static let hiddenTagPrefixes = [
+        "musicbrainz", "acoustid", "script", "replaygain",
+        "encoder", "barcode", "asin", "isrc", "catalognumber",
+        "media", "totaldiscs", "totaltracks", "tracktotal", "disctotal",
+        "releasestatus", "releasetype", "releasecountry",
+    ]
+
     private func tagsSection(_ tags: [String: String]) -> some View {
-        Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 6) {
-            ForEach(tags.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
+        let filtered = tags.filter { key, _ in
+            let lower = key.lowercased()
+            return !Self.hiddenTagPrefixes.contains(where: { lower.hasPrefix($0) })
+        }
+        return Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 6) {
+            ForEach(filtered.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
                 metaRow(key, value)
             }
         }
@@ -335,34 +348,35 @@ struct TrackDetailView: View {
                     Button {
                         onPlayFile(version.track.file)
                     } label: {
-                        Image(systemName: "play.circle")
+                        Image(systemName: "play.circle.fill")
                             .font(.title3)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.accentColor)
                     }
                     .buttonStyle(.plain)
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        // Album title
                         Text(version.album.title)
                             .font(.callout)
                             .lineLimit(1)
+
+                        // Technical: format, DR, duration
                         HStack(spacing: 6) {
                             if !version.format.isEmpty {
                                 Text(version.format)
                                     .font(.caption2.monospaced().bold())
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
-                                    .background(RoundedRectangle(cornerRadius: 3).fill(.blue.opacity(0.15)))
-                                    .foregroundColor(.blue)
-                            }
-                            if !version.album.date.isEmpty {
-                                Text(version.album.date)
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
+                                    .background(RoundedRectangle(cornerRadius: 3).fill(formatColor(version.format).opacity(0.15)))
+                                    .foregroundColor(formatColor(version.format))
                             }
                             if let dr = version.track.dr, dr > 0 {
-                                Text("DR\(dr)")
-                                    .font(.caption2.bold().monospaced())
-                                    .foregroundColor(drColor(dr))
+                                HStack(spacing: 3) {
+                                    Text("DR\(dr)")
+                                        .font(.caption2.bold().monospaced())
+                                        .foregroundColor(drColor(dr))
+                                    drBar(dr)
+                                }
                             }
                             let mins = Int(version.track.duration) / 60
                             let secs = Int(version.track.duration) % 60
@@ -372,17 +386,65 @@ struct TrackDetailView: View {
                                     .foregroundStyle(.tertiary)
                             }
                         }
+
+                        // Release info: label, date, country
+                        HStack(spacing: 6) {
+                            if !version.album.label.isEmpty {
+                                Text(version.album.label)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if !version.track.country.isEmpty {
+                                Text(version.track.country)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if !version.album.date.isEmpty {
+                                Text(version.album.date)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            if !version.album.originalDate.isEmpty && version.album.originalDate != version.album.date {
+                                Text("(orig. \(version.album.originalDate))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.quaternary)
+                            }
+                        }
+
+                        // File path
+                        let folder = (version.track.file as NSString).deletingLastPathComponent
+                        if !folder.isEmpty {
+                            Text(folder)
+                                .font(.system(size: 9).monospaced())
+                                .foregroundStyle(.quaternary)
+                                .lineLimit(1)
+                                .truncationMode(.head)
+                        }
                     }
 
                     Spacer()
                 }
                 .padding(.horizontal)
-                .padding(.vertical, 6)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onSelectAlbum?(version.album)
+                }
+                .onHover { h in if h && onSelectAlbum != nil { NSCursor.pointingHand.push() } else if !h { NSCursor.pop() } }
 
                 if version.id != versions.last?.id {
                     Divider().padding(.leading, 52)
                 }
             }
         }
+    }
+
+    private func formatColor(_ format: String) -> Color {
+        let f = format.uppercased()
+        if f.contains("DSF") || f.contains("DFF") || f.contains("DSD") { return .green }
+        if f.contains("FLAC") || f.contains("WAV") || f.contains("AIFF") { return .blue }
+        if f.contains("MQA") { return .purple }
+        if f.contains("MP3") || f.contains("AAC") { return .orange }
+        return .secondary
     }
 }

@@ -118,7 +118,7 @@ struct EditionComparisonView: View {
                 file: "", pos: 0, duration: 0, genre: "", date: "",
                 trackNumber: "", disc: "", composer: "", performer: "",
                 conductor: "", label: "", originalDate: "",
-                musicbrainzTrackId: "", musicbrainzAlbumId: "")
+                musicbrainzTrackId: "", musicbrainzAlbumId: "", country: "")
             let s = AudioQualityScore.score(track: representative, album: ed)
             return (album: ed, score: s.total)
         }
@@ -140,7 +140,7 @@ struct EditionComparisonView: View {
                         file: "", pos: 0, duration: 0, genre: "", date: "",
                         trackNumber: "", disc: "", composer: "", performer: "",
                         conductor: "", label: "", originalDate: "",
-                        musicbrainzTrackId: "", musicbrainzAlbumId: "")
+                        musicbrainzTrackId: "", musicbrainzAlbumId: "", country: "")
                     return AudioQualityScore.score(track: representative, album: edition)
                 }()
                 let mb = releaseInfo[edition.id]

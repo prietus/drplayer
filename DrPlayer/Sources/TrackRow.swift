@@ -14,6 +14,7 @@ struct TrackRow: View {
     let onSetPreferred: ((String) -> Void)?
     let preferredFiles: Set<String>  // files marked as preferred
     var onEnqueue: (() -> Void)? = nil
+    var onSelectAlbum: ((Album) -> Void)? = nil
 
     @State private var showVersions = false
     @State private var showDRComparison = false
@@ -140,10 +141,25 @@ struct TrackRow: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
-                            Text(item.album.title)
-                                .font(.callout)
-                                .fontWeight(item.isBest ? .bold : .regular)
-                                .lineLimit(1)
+                            if let onSelectAlbum {
+                                Button {
+                                    showVersions = false
+                                    onSelectAlbum(item.album)
+                                } label: {
+                                    Text(item.album.title)
+                                        .font(.callout)
+                                        .fontWeight(item.isBest ? .bold : .regular)
+                                        .lineLimit(1)
+                                        .underline(false)
+                                }
+                                .buttonStyle(.plain)
+                                .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+                            } else {
+                                Text(item.album.title)
+                                    .font(.callout)
+                                    .fontWeight(item.isBest ? .bold : .regular)
+                                    .lineLimit(1)
+                            }
                             if item.isBest {
                                 Text("BEST")
                                     .font(.system(size: 8, weight: .heavy))

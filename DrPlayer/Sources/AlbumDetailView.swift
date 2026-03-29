@@ -50,7 +50,18 @@ struct AlbumDetailView: View {
                 },
                 onEnqueue: { onEnqueueTrack(track) },
                 onPlayFile: onPlayFile,
-                onDismiss: { selectedTrack = nil }
+                onDismiss: { selectedTrack = nil },
+                onSelectAlbum: { targetAlbum in
+                    selectedTrack = nil
+                    album = targetAlbum
+                    Task {
+                        let a = targetAlbum
+                        cover = await a.coverImageAsync()
+                        let paths = await Task.detached { a.allArtwork }.value
+                        artworkPaths = paths
+                        artworkCount = paths.count
+                    }
+                }
             )
         } else if showEditionComparison {
             EditionComparisonView(
@@ -615,7 +626,18 @@ struct AlbumDetailView: View {
                     onPlayFile: onPlayFile,
                     onSetPreferred: onSetPreferred,
                     preferredFiles: preferredFiles,
-                    onEnqueue: { onEnqueueTrack(track) }
+                    onEnqueue: { onEnqueueTrack(track) },
+                    onSelectAlbum: { targetAlbum in
+                        album = targetAlbum
+                        selectedTrack = nil
+                        Task {
+                            let a = targetAlbum
+                            cover = await a.coverImageAsync()
+                            let paths = await Task.detached { a.allArtwork }.value
+                            artworkPaths = paths
+                            artworkCount = paths.count
+                        }
+                    }
                 )
 
                 if idx < tracks.count - 1 {
