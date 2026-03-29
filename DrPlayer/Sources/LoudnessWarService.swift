@@ -65,6 +65,9 @@ enum LoudnessWarService {
             URLQueryItem(name: "artist", value: artist),
             URLQueryItem(name: "album", value: cleanedAlbum)
         ]
+        // URLComponents doesn't encode apostrophes — fix manually
+        components.percentEncodedQuery = components.percentEncodedQuery?
+            .replacingOccurrences(of: "'", with: "%27")
         guard let url = components.url else { return [] }
 
         var request = URLRequest(url: url)
@@ -74,7 +77,15 @@ enum LoudnessWarService {
               let http = response as? HTTPURLResponse, http.statusCode == 200,
               let html = String(data: data, encoding: .utf8) else { return [] }
 
-        return parseAlbumList(html: html)
+        let results = parseAlbumList(html: html)
+
+        // If no results and artist contains "-", retry with "/" (AC-DC → AC/DC)
+        if results.isEmpty && artist.contains("-") {
+            let altArtist = artist.replacingOccurrences(of: "-", with: "/")
+            return await search(artist: altArtist, album: album)
+        }
+
+        return results
     }
 
     private static func parseAlbumList(html: String) -> [LoudnessWarEntry] {
