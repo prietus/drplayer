@@ -39,14 +39,16 @@ class AppSettings {
         let defaults = UserDefaults.standard
         let detected = Self.detectFromMPDConf()
 
-        self.musicLibraryPath = defaults.string(forKey: "musicLibraryPath")
-            ?? detected.musicDir
+        // Always prefer music_directory from mpd.conf (source of truth for MPD)
+        self.musicLibraryPath = detected.musicDir
+            ?? defaults.string(forKey: "musicLibraryPath")
             ?? NSString(string: "~/.mpd/music").expandingTildeInPath as String
-        self.mpdHost = defaults.string(forKey: "mpdHost")
-            ?? detected.host
+        self.mpdHost = detected.host
+            ?? defaults.string(forKey: "mpdHost")
             ?? "localhost"
-        let storedPort = defaults.integer(forKey: "mpdPort")
-        self.mpdPort = storedPort > 0 ? storedPort : (detected.port ?? 6600)
+        self.mpdPort = detected.port
+            ?? { let p = defaults.integer(forKey: "mpdPort"); return p > 0 ? p : nil }()
+            ?? 6600
         self.hasCompletedSetup = defaults.bool(forKey: "hasCompletedSetup")
         self.lastfmApiKey = defaults.string(forKey: "lastfmApiKey") ?? ""
         self.discogsKey = defaults.string(forKey: "discogsKey") ?? ""
