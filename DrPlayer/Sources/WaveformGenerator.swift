@@ -3,7 +3,7 @@ import Foundation
 /// Extracts audio peaks from a file using ffmpeg via posix_spawn.
 /// Caches results to disk so each file is only processed once.
 enum WaveformGenerator {
-    static let barCount = 200
+    static let barCount = 400
 
     private static let cacheDir: String = {
         let dir = NSHomeDirectory() + "/.drplayer/waveforms"
