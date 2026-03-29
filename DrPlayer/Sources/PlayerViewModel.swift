@@ -100,6 +100,14 @@ class PlayerViewModel {
         // (aggregates don't persist across reboots)
         ensureAggregateDevices()
 
+        // Register system Now Playing / media key handlers
+        NowPlayingBridge.shared.setup(
+            onPlayPause: { [weak self] in Task { await self?.togglePlayPause() } },
+            onNext: { [weak self] in Task { await self?.next() } },
+            onPrev: { [weak self] in Task { await self?.prev() } },
+            onSeek: { [weak self] pos in Task { await self?.seek(to: pos) } }
+        )
+
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self else { return }
             // Poll less frequently when stopped
@@ -210,6 +218,9 @@ class PlayerViewModel {
             if radioEnabled && mpdState == "stop" && !playlist.isEmpty {
                 await continueRadio()
             }
+
+            // Update system Now Playing info
+            await updateNowPlaying(state: mpdState)
         } catch {
             await MainActor.run {
                 self.connected = false
@@ -305,6 +316,50 @@ class PlayerViewModel {
     func prev() async {
         try? await mpd.command("previous")
         await refresh()
+    }
+
+    func seek(to position: Double) async {
+        try? await mpd.command("seekcur \(Int(position))")
+        await refresh()
+    }
+
+    // MARK: - System Now Playing
+
+    private var lastNowPlayingFile = ""
+
+    private func updateNowPlaying(state: String) async {
+        guard state != "stop" else {
+            NowPlayingBridge.shared.clear()
+            lastNowPlayingFile = ""
+            return
+        }
+
+        // Load cover art only when track changes
+        var cover: NSImage? = nil
+        if currentFile != lastNowPlayingFile {
+            lastNowPlayingFile = currentFile
+            if let album = currentPlayingAlbum {
+                cover = await album.coverImageAsync()
+            }
+        }
+
+        let title = await MainActor.run { currentTitle }
+        let artist = await MainActor.run { currentArtist }
+        let album = await MainActor.run { currentAlbum }
+        let dur = await MainActor.run { duration }
+        let elap = await MainActor.run { elapsed }
+        let playing = state == "play"
+
+        NowPlayingBridge.shared.update(
+            title: title,
+            artist: artist,
+            album: album,
+            duration: dur,
+            elapsed: elap,
+            isPlaying: playing,
+            file: currentFile,
+            coverImage: cover
+        )
     }
 
     func playTrack(_ pos: Int) async {
