@@ -47,6 +47,11 @@ class PlayerViewModel {
     var radioEnabled = false
     var radioContext: RadioEngine.SeedContext?
 
+    // Sample rate matching state
+    var sampleRateMatched = false
+    var matchedSampleRate: Double = 0
+    var matchedDeviceName: String = ""
+
     // Background task progress
     var genreEnrichProgress: (done: Int, total: Int) = (0, 0)
     var genreEnrichRunning = false
@@ -56,6 +61,8 @@ class PlayerViewModel {
     private var mpd: MPDClient
     private var timer: Timer?
     private var outputPollCounter = 0
+    private var lastSampleRate: Double = 0
+    private var isSwitchingRate = false
 
     init() {
         let settings = AppSettings.shared
@@ -63,6 +70,10 @@ class PlayerViewModel {
     }
 
     func start() {
+        // Recreate aggregate devices for DACs with name conflicts
+        // (aggregates don't persist across reboots)
+        ensureAggregateDevices()
+
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self else { return }
             // Poll less frequently when stopped
@@ -149,6 +160,19 @@ class PlayerViewModel {
                     self.generateWaveform(for: currentFile)
                 }
             }
+            // Sample rate matching: disable output → set DAC rate → re-enable
+            let mpdState = status["state"] ?? "stop"
+            let currentAudioFmt = status["audio"] ?? ""
+            if AppSettings.shared.sampleRateMatchingEnabled && mpdState == "play" && !currentAudioFmt.isEmpty {
+                await handleSampleRateMatching(audioFormat: currentAudioFmt)
+            } else if mpdState == "stop" {
+                await MainActor.run {
+                    self.sampleRateMatched = false
+                    self.matchedSampleRate = 0
+                }
+                lastSampleRate = 0
+            }
+
             // Poll outputs every ~10 seconds
             outputPollCounter += 1
             if outputPollCounter % 10 == 1 {
@@ -156,7 +180,6 @@ class PlayerViewModel {
             }
 
             // Radio: auto-continue when queue ends
-            let mpdState = status["state"] ?? "stop"
             if radioEnabled && mpdState == "stop" && !playlist.isEmpty {
                 await continueRadio()
             }
@@ -531,6 +554,132 @@ class PlayerViewModel {
         }
         let artistNorm = artist.lowercased().folding(options: .diacriticInsensitive, locale: .current)
         return "\(artistNorm)|\(cleaned)"
+    }
+
+    // MARK: - Aggregate Device Management
+
+    /// Ensure aggregate devices exist for any mpd.conf outputs that need them.
+    /// Aggregate devices don't persist across reboots, so we recreate on launch.
+    private func ensureAggregateDevices() {
+        let conf = AppSettings.detectFromMPDConf()
+        for output in conf.outputs {
+            guard let device = output.device else { continue }
+            // Check if this output uses an aggregate name pattern
+            if device.hasSuffix(" (Output)") {
+                let originalName = String(device.dropLast(" (Output)".count))
+                if CoreAudioDevices.hasNameConflict(originalName) {
+                    CoreAudioDevices.createOutputAggregate(forDeviceNamed: originalName)
+                }
+            }
+        }
+    }
+
+    // MARK: - Sample Rate Matching
+    //
+    // When the DAC target is configured, automatically switch the device's
+    // sample rate to match the source material. The trick: we must cycle
+    // the MPD output (disable → set rate → enable) so MPD reopens the
+    // device at the new rate. Without this, the existing audio stream
+    // breaks when the hardware rate changes underneath it.
+
+    /// Parse the target device sample rate from MPD's audio format string.
+    /// PCM: "44100:24:2" → 44100.0
+    /// DSD via DoP: "dsd64:2" → 176400.0 (DSD64 needs 176.4kHz PCM carrier)
+    private func parseSampleRate(from fmt: String) -> Double? {
+        let parts = fmt.split(separator: ":")
+        guard let first = parts.first else { return nil }
+        let token = String(first).lowercased()
+
+        // DSD format: "dsd64", "dsd128", "dsd256", "dsd512"
+        if token.hasPrefix("dsd"), let multiplier = Int(token.dropFirst(3)) {
+            // DoP encodes DSD in PCM frames at base rate 44100 * multiplier/64 * 4
+            // DSD64 → 176400, DSD128 → 352800, DSD256 → 705600
+            return 44100.0 * Double(multiplier) / 64.0 * 4.0
+        }
+
+        // Standard PCM: just the sample rate number
+        if let rate = Double(token), rate > 0 {
+            return rate
+        }
+        return nil
+    }
+
+    /// Handle sample rate switching when audio format changes between tracks.
+    /// Sequence: disable output → set DAC rate → settle → re-enable output.
+    /// For DSD: rate is the DoP carrier (e.g. DSD64 → 176400 Hz). MPD with
+    /// `dop "yes"` wraps DSD data in DoP PCM frames at this rate.
+    private func handleSampleRateMatching(audioFormat fmt: String) async {
+        guard !isSwitchingRate else { return }
+
+        let isDSD = fmt.lowercased().hasPrefix("dsd")
+
+        guard let sampleRate = parseSampleRate(from: fmt),
+              sampleRate > 0 else { return }
+
+        // No change needed if rate is the same
+        guard abs(sampleRate - lastSampleRate) > 1 else {
+            await MainActor.run {
+                self.sampleRateMatched = true
+                self.matchedSampleRate = sampleRate
+            }
+            return
+        }
+
+        let settings = AppSettings.shared
+        guard let deviceID = CoreAudioDevices.device(forUID: settings.sampleRateDeviceUID) else { return }
+
+        // Find the MPD output that targets our DAC
+        let dacDevice = CoreAudioDevices.listOutputDevices().first { $0.uid == settings.sampleRateDeviceUID }
+        let dacName = dacDevice?.name ?? ""
+
+        // Find which MPD output to cycle (match by device name)
+        let mpdOutput = await MainActor.run { () -> MPDClient.AudioOutput? in
+            audioOutputs.first { $0.name == dacName || $0.attributes["device"] == dacName }
+                ?? audioOutputs.first { $0.enabled }
+        }
+        guard let output = mpdOutput else { return }
+
+        isSwitchingRate = true
+        let isFirstTrack = lastSampleRate == 0
+        let wasDSD = lastSampleRate > 100000
+
+        print("[SampleRate] \(CoreAudioDevices.formatRate(lastSampleRate)) → \(CoreAudioDevices.formatRate(sampleRate))\(isDSD ? " (DSD/DoP)" : "")")
+
+        // Step 1: Disable output so MPD releases the device
+        if !isFirstTrack {
+            try? await mpd.command("disableoutput \(output.id)")
+            // Wait for MPD to fully release the CoreAudio device
+            try? await Task.sleep(for: .milliseconds(500))
+        }
+
+        // Step 2: Set DAC to the target rate BEFORE MPD reopens
+        // PCM: actual sample rate (44100, 96000, etc.)
+        // DSD: DoP carrier rate (176400 for DSD64, 352800 for DSD128, etc.)
+        let rateSet = CoreAudioDevices.setDeviceSampleRate(deviceID, sampleRate: sampleRate)
+        if !rateSet {
+            // Some DACs need a second attempt after the device is fully released
+            try? await Task.sleep(for: .milliseconds(500))
+            CoreAudioDevices.setDeviceSampleRate(deviceID, sampleRate: sampleRate)
+        }
+
+        // Step 3: Wait for DAC to stabilize at new rate, then re-enable output
+        if !isFirstTrack {
+            // Verify the rate actually changed before reopening
+            try? await Task.sleep(for: .milliseconds(500))
+            try? await mpd.command("enableoutput \(output.id)")
+        }
+
+        lastSampleRate = sampleRate
+        isSwitchingRate = false
+
+        await MainActor.run {
+            self.sampleRateMatched = true
+            self.matchedSampleRate = sampleRate
+            self.matchedDeviceName = dacName
+        }
+
+        // Refresh outputs to reflect the change
+        await refreshOutputs()
     }
 
     // MARK: - Waveform

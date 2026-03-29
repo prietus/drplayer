@@ -248,4 +248,145 @@ enum CoreAudioDevices {
         if maxRate >= 48000 { return "CD+" }
         return "CD"
     }
+
+    // MARK: - Sample Rate Control
+
+    /// Set the nominal sample rate on a device. Returns true on success.
+    @discardableResult
+    static func setDeviceSampleRate(_ deviceID: AudioObjectID, sampleRate: Double) -> Bool {
+        let currentRate = nominalSampleRate(for: deviceID)
+        guard abs(currentRate - sampleRate) > 1 else { return true } // already correct
+
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyNominalSampleRate,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        var settable: DarwinBoolean = false
+        guard AudioObjectIsPropertySettable(deviceID, &address, &settable) == noErr,
+              settable.boolValue else {
+            print("[CoreAudio] Sample rate not settable on device \(deviceID)")
+            return false
+        }
+
+        var rate = Float64(sampleRate)
+        let status = AudioObjectSetPropertyData(
+            deviceID, &address, 0, nil,
+            UInt32(MemoryLayout<Float64>.size), &rate
+        )
+        if status != noErr {
+            print("[CoreAudio] Failed to set sample rate \(sampleRate) on device \(deviceID): \(status)")
+        }
+        return status == noErr
+    }
+
+    /// Find a device by its UID string.
+    static func device(forUID uid: String) -> AudioObjectID? {
+        listOutputDevices().first { $0.uid == uid }?.id
+    }
+
+    // MARK: - Duplicate Name Detection
+
+    /// Check if a device name is ambiguous (multiple CoreAudio devices share it).
+    /// This happens with USB DACs that present separate input/output sub-devices.
+    static func hasNameConflict(_ name: String) -> Bool {
+        var propertySize: UInt32 = 0
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        guard AudioObjectGetPropertyDataSize(
+            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &propertySize
+        ) == noErr else { return false }
+
+        let count = Int(propertySize) / MemoryLayout<AudioObjectID>.size
+        var ids = [AudioObjectID](repeating: 0, count: count)
+        guard AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &propertySize, &ids
+        ) == noErr else { return false }
+
+        var matchCount = 0
+        for id in ids {
+            let devName = stringProperty(id, selector: kAudioObjectPropertyName)
+            if devName == name { matchCount += 1 }
+        }
+        return matchCount > 1
+    }
+
+    /// Get the UID of the output-only sub-device for a given device name.
+    /// Useful when multiple sub-devices share the same name (mic + DAC).
+    static func outputDeviceUID(forName name: String) -> String? {
+        var propertySize: UInt32 = 0
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        guard AudioObjectGetPropertyDataSize(
+            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &propertySize
+        ) == noErr else { return nil }
+
+        let count = Int(propertySize) / MemoryLayout<AudioObjectID>.size
+        var ids = [AudioObjectID](repeating: 0, count: count)
+        guard AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &propertySize, &ids
+        ) == noErr else { return nil }
+
+        for id in ids {
+            let devName = stringProperty(id, selector: kAudioObjectPropertyName)
+            guard devName == name else { continue }
+            let channels = outputChannels(for: id)
+            if channels > 0 {
+                return stringProperty(id, selector: kAudioDevicePropertyDeviceUID)
+            }
+        }
+        return nil
+    }
+
+    // MARK: - Aggregate Device (workaround for duplicate-name DACs)
+
+    /// Create an aggregate device wrapping only the output sub-device, with a unique name.
+    /// Returns the aggregate device's name (for mpd.conf) and AudioObjectID.
+    /// MPD's osx plugin matches devices by name — when a USB DAC presents both a mic
+    /// and a DAC under the same name, MPD grabs the mic first. This workaround creates
+    /// a uniquely named aggregate device so MPD finds the right one.
+    @discardableResult
+    static func createOutputAggregate(forDeviceNamed name: String) -> (name: String, id: AudioObjectID)? {
+        guard let outputUID = outputDeviceUID(forName: name) else { return nil }
+
+        let aggName = "\(name) (Output)"
+        let aggUID = "drplayer.aggregate.\(outputUID.hash)"
+
+        // Check if it already exists
+        if let existing = device(forUID: aggUID) {
+            return (aggName, existing)
+        }
+
+        let desc: [String: Any] = [
+            kAudioAggregateDeviceNameKey as String: aggName,
+            kAudioAggregateDeviceUIDKey as String: aggUID,
+            kAudioAggregateDeviceSubDeviceListKey as String: [
+                [kAudioSubDeviceUIDKey as String: outputUID]
+            ],
+            kAudioAggregateDeviceIsPrivateKey as String: false,
+            kAudioAggregateDeviceIsStackedKey as String: false
+        ]
+
+        var aggregateID: AudioObjectID = 0
+        let status = AudioHardwareCreateAggregateDevice(desc as CFDictionary, &aggregateID)
+        guard status == noErr else {
+            print("[CoreAudio] Failed to create aggregate for \(name): \(status)")
+            return nil
+        }
+
+        print("[CoreAudio] Created aggregate '\(aggName)' (id=\(aggregateID)) for \(name)")
+        return (aggName, aggregateID)
+    }
+
+    /// Destroy a previously created aggregate device.
+    static func destroyAggregate(_ id: AudioObjectID) {
+        AudioHardwareDestroyAggregateDevice(id)
+    }
 }

@@ -375,6 +375,11 @@ private struct AudioOutputsTab: View {
 
                 Divider()
 
+                // Sample Rate Matching
+                sampleRateMatchingSection
+
+                Divider()
+
                 // MPD outputs
                 Text(String(localized: "MPD outputs", defaultValue: "MPD outputs"))
                     .font(.headline)
@@ -507,29 +512,45 @@ private struct AudioOutputsTab: View {
             .padding(.leading, 36)
 
             // "Add to MPD" button if USB device not yet in mpd.conf
-            if device.transport == "USB",
-               let conf = mpdConf,
-               !conf.outputs.contains(where: { $0.device == device.name || $0.name == device.name }) {
-                Button {
-                    addDeviceToMPD(device)
-                } label: {
-                    Label("Add to mpd.conf", systemImage: "plus.circle")
-                        .font(.caption)
+            if device.transport == "USB", let conf = mpdConf {
+                let aggName = "\(device.name) (Output)"
+                let isConfigured = conf.outputs.contains(where: {
+                    $0.device == device.name || $0.name == device.name
+                    || $0.device == aggName || $0.name == aggName
+                })
+                let hasConflict = CoreAudioDevices.hasNameConflict(device.name)
+
+                if !isConfigured {
+                    Button {
+                        addDeviceToMPD(device)
+                    } label: {
+                        Label("Add to mpd.conf", systemImage: "plus.circle")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .padding(.leading, 36)
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Configured in mpd.conf")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.leading, 36)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .padding(.leading, 36)
-            } else if device.transport == "USB",
-                      let conf = mpdConf,
-                      conf.outputs.contains(where: { $0.device == device.name || $0.name == device.name }) {
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    Text("Configured in mpd.conf")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+
+                if hasConflict {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text("This device shares its name with a microphone. An aggregate device will be created so MPD uses the correct output.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.leading, 36)
                 }
-                .padding(.leading, 36)
             }
         }
         .padding(10)
@@ -574,6 +595,55 @@ private struct AudioOutputsTab: View {
         case "Thunderbolt": return .orange
         default: return .secondary
         }
+    }
+
+    // MARK: - Sample Rate Matching Section
+
+    private var sampleRateMatchingSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Sample Rate Matching")
+                .font(.headline)
+
+            Text("Automatically switches the DAC sample rate to match each track. On rate changes, the MPD output is briefly cycled so the device reopens at the correct rate — no resampling by macOS.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                Image(systemName: "waveform.badge.magnifyingglass")
+                    .font(.title2)
+                    .foregroundColor(AppSettings.shared.sampleRateMatchingEnabled ? .green : .secondary)
+
+                Picker("Target DAC", selection: Binding(
+                    get: { AppSettings.shared.sampleRateDeviceUID },
+                    set: { AppSettings.shared.sampleRateDeviceUID = $0 }
+                )) {
+                    Text("Disabled").tag("")
+                    ForEach(devices.filter { $0.transport == "USB" }) { device in
+                        Text("\(device.name)")
+                            .tag(device.uid)
+                    }
+                }
+                .labelsHidden()
+            }
+
+            if AppSettings.shared.sampleRateMatchingEnabled {
+                if let device = devices.first(where: { $0.uid == AppSettings.shared.sampleRateDeviceUID }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("\(device.name) — \(device.currentFormat)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text("Make sure this device has a matching audio_output in mpd.conf with mixer_type \"none\".")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 8).fill(.green.opacity(0.05)))
     }
 
     // MARK: - MPD Output Row

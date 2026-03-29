@@ -26,6 +26,14 @@ class AppSettings {
         didSet { UserDefaults.standard.set(discogsSecret, forKey: "discogsSecret") }
     }
 
+    /// UID of the DAC device for automatic sample rate switching, empty = disabled
+    var sampleRateDeviceUID: String {
+        didSet { UserDefaults.standard.set(sampleRateDeviceUID, forKey: "sampleRateDeviceUID") }
+    }
+
+    /// Whether automatic sample rate matching is enabled
+    var sampleRateMatchingEnabled: Bool { !sampleRateDeviceUID.isEmpty }
+
     /// Standard mpd.conf search paths
     static let mpdConfPaths = [
         NSString(string: "~/.mpd/mpd.conf").expandingTildeInPath,
@@ -53,6 +61,7 @@ class AppSettings {
         self.lastfmApiKey = defaults.string(forKey: "lastfmApiKey") ?? ""
         self.discogsKey = defaults.string(forKey: "discogsKey") ?? ""
         self.discogsSecret = defaults.string(forKey: "discogsSecret") ?? ""
+        self.sampleRateDeviceUID = defaults.string(forKey: "sampleRateDeviceUID") ?? ""
     }
 
     /// Resolved, symlink-aware music base path
@@ -277,23 +286,39 @@ class AppSettings {
         return outputs
     }
 
-    /// Add an audio_output block to mpd.conf for a detected DAC
-    static func addAudioOutput(name: String, device: String) throws {
+    /// Add an audio_output block to mpd.conf for a detected DAC.
+    /// If the device name is ambiguous (mic + DAC share the same name),
+    /// creates a CoreAudio aggregate device with a unique name.
+    /// Returns the actual device name used in mpd.conf.
+    @discardableResult
+    static func addAudioOutput(name: String, device: String) throws -> String {
         guard let confPath = detectFromMPDConf().confPath else {
             throw NSError(domain: "DrPlayer", code: 1, userInfo: [NSLocalizedDescriptionKey: "mpd.conf not found"])
         }
+
+        // If multiple CoreAudio devices share this name (e.g. mic + DAC),
+        // create an aggregate device so MPD picks the right one
+        var deviceName = device
+        if CoreAudioDevices.hasNameConflict(device) {
+            if let agg = CoreAudioDevices.createOutputAggregate(forDeviceNamed: device) {
+                deviceName = agg.name
+            }
+        }
+
         var content = try String(contentsOfFile: confPath, encoding: .utf8)
         let block = """
 
         audio_output {
             type            "osx"
-            name            "\(name)"
-            device          "\(device)"
+            name            "\(deviceName)"
+            device          "\(deviceName)"
             mixer_type      "none"
+            dop             "yes"
         }
         """
         content += "\n" + block
         try content.write(toFile: confPath, atomically: true, encoding: .utf8)
+        return deviceName
     }
 
     private static func extractValue(line: String, key: String) -> String? {

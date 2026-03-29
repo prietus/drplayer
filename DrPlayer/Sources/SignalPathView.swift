@@ -13,6 +13,7 @@ struct SignalPathIndicator: View {
 
     private var signalColor: Color {
         guard vm.connected, vm.isPlaying else { return .gray }
+        if vm.sampleRateMatched && isBitperfect { return .green }
         return isBitperfect ? .cyan : .purple
     }
 
@@ -31,7 +32,7 @@ struct SignalPathIndicator: View {
             }
         }
         .buttonStyle(.plain)
-        .help(isBitperfect ? "Bitperfect" : "Signal path")
+        .help(vm.sampleRateMatched && isBitperfect ? "Bitperfect · Rate matched" : isBitperfect ? "Bitperfect" : "Signal path")
         .popover(isPresented: $showPopover, arrowEdge: .bottom) {
             SignalPathPopover(vm: vm, isBitperfect: isBitperfect)
         }
@@ -50,6 +51,14 @@ private struct SignalPathPopover: View {
                 Text("Signal path")
                     .font(.headline)
                 Spacer()
+                if vm.sampleRateMatched {
+                    Text("Rate Matched")
+                        .font(.caption.bold())
+                        .foregroundColor(.green)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(.green.opacity(0.15)))
+                }
                 if isBitperfect {
                     Text("Bitperfect")
                         .font(.caption.bold())
@@ -80,6 +89,18 @@ private struct SignalPathPopover: View {
                     detail: mpdDescription,
                     color: .cyan
                 )
+
+                // Sample rate matching node
+                if vm.sampleRateMatched {
+                    connector
+
+                    signalNode(
+                        icon: "arrow.triangle.2.circlepath",
+                        title: "Rate Match → \(CoreAudioDevices.formatRate(vm.matchedSampleRate))",
+                        detail: vm.matchedDeviceName,
+                        color: .green
+                    )
+                }
 
                 connector
 
