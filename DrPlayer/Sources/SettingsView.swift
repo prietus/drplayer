@@ -386,17 +386,33 @@ private struct AudioOutputsTab: View {
 
             // Technical details
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 3) {
+                if !device.currentFormat.isEmpty {
+                    GridRow {
+                        detailLabel("Active")
+                        Text(device.currentFormat)
+                            .font(.caption.monospaced().bold())
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 GridRow {
                     detailLabel(String(localized: "Channels", defaultValue: "Channels"))
                     Text("\(device.outputChannels)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                if !device.supportedBitDepths.isEmpty {
+                    GridRow {
+                        detailLabel("Bit depth")
+                        Text(device.supportedBitDepths.map { "\($0)bit" }.joined(separator: " · "))
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 GridRow {
-                    detailLabel(String(localized: "Current rate", defaultValue: "Current rate"))
-                    Text(CoreAudioDevices.formatRate(device.currentSampleRate))
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
+                    detailLabel("Max rate")
+                    Text(CoreAudioDevices.formatRate(device.maxSampleRate > 0 ? device.maxSampleRate : device.currentSampleRate))
+                        .font(.caption.monospaced().bold())
+                        .foregroundColor(.green)
                 }
                 GridRow {
                     detailLabel(String(localized: "Supported rates", defaultValue: "Supported rates"))

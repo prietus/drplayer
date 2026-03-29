@@ -10,6 +10,11 @@ struct AudioDeviceInfo: Identifiable {
     let currentSampleRate: Double
     let supportedSampleRates: [String]
     let uid: String
+    // Extended info
+    let maxSampleRate: Double
+    let supportedBitDepths: [Int]
+    let currentBitDepth: Int
+    let currentFormat: String  // e.g. "lpcm 32bit/44100Hz"
 }
 
 enum CoreAudioDevices {
@@ -47,6 +52,7 @@ enum CoreAudioDevices {
         let currentRate = nominalSampleRate(for: id)
         let rates = availableSampleRates(for: id)
         let uid = stringProperty(id, selector: kAudioDevicePropertyDeviceUID)
+        let streamInfo = outputStreamInfo(for: id)
 
         // Skip virtual/aggregate devices with only 1 channel (Teams, etc.)
         if transport == "Virtual" && channels <= 1 { return nil }
@@ -59,8 +65,70 @@ enum CoreAudioDevices {
             outputChannels: channels,
             currentSampleRate: currentRate,
             supportedSampleRates: rates,
-            uid: uid
+            uid: uid,
+            maxSampleRate: streamInfo.maxRate,
+            supportedBitDepths: streamInfo.bitDepths,
+            currentBitDepth: streamInfo.currentBitDepth,
+            currentFormat: streamInfo.currentFormat
         )
+    }
+
+    // MARK: - Stream info
+
+    private static func outputStreamInfo(for id: AudioObjectID) -> (maxRate: Double, bitDepths: [Int], currentBitDepth: Int, currentFormat: String) {
+        var streamAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreams,
+            mScope: kAudioObjectPropertyScopeOutput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var streamSize: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(id, &streamAddr, 0, nil, &streamSize) == noErr,
+              streamSize > 0 else { return (0, [], 0, "") }
+
+        let streamCount = Int(streamSize) / MemoryLayout<AudioStreamID>.size
+        var streamIDs = [AudioStreamID](repeating: 0, count: streamCount)
+        guard AudioObjectGetPropertyData(id, &streamAddr, 0, nil, &streamSize, &streamIDs) == noErr,
+              let streamID = streamIDs.first else { return (0, [], 0, "") }
+
+        // Current physical format
+        var physFmtAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioStreamPropertyPhysicalFormat,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var physFmt = AudioStreamBasicDescription()
+        var physFmtSize = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+        let currentBitDepth: Int
+        let currentFormat: String
+        if AudioObjectGetPropertyData(streamID, &physFmtAddr, 0, nil, &physFmtSize, &physFmt) == noErr {
+            currentBitDepth = Int(physFmt.mBitsPerChannel)
+            currentFormat = "\(currentBitDepth)bit / \(formatRate(Double(physFmt.mSampleRate)))"
+        } else {
+            currentBitDepth = 0
+            currentFormat = ""
+        }
+
+        // Available physical formats
+        var availAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioStreamPropertyAvailablePhysicalFormats,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var availSize: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(streamID, &availAddr, 0, nil, &availSize) == noErr else {
+            return (0, [currentBitDepth], currentBitDepth, currentFormat)
+        }
+
+        let fmtCount = Int(availSize) / MemoryLayout<AudioStreamRangedDescription>.size
+        var fmts = [AudioStreamRangedDescription](repeating: AudioStreamRangedDescription(), count: fmtCount)
+        guard AudioObjectGetPropertyData(streamID, &availAddr, 0, nil, &availSize, &fmts) == noErr else {
+            return (0, [currentBitDepth], currentBitDepth, currentFormat)
+        }
+
+        let bitDepths = Array(Set(fmts.map { Int($0.mFormat.mBitsPerChannel) })).sorted()
+        let maxRate = fmts.map { Double($0.mFormat.mSampleRate) }.max() ?? 0
+
+        return (maxRate, bitDepths, currentBitDepth, currentFormat)
     }
 
     // MARK: - Property helpers
@@ -172,14 +240,9 @@ enum CoreAudioDevices {
 
     /// Classify device quality tier
     static func qualityTier(_ device: AudioDeviceInfo) -> String {
-        let maxRate = device.supportedSampleRates.last.flatMap { str -> Double? in
-            // Parse "384 kHz" -> 384000
-            let cleaned = str.replacingOccurrences(of: " kHz", with: "")
-            if let val = Double(cleaned) { return val * 1000 }
-            return nil
-        } ?? device.currentSampleRate
-
-        if maxRate >= 384000 { return "Hi-Res (DSD/DXD)" }
+        let maxRate = device.maxSampleRate > 0 ? device.maxSampleRate : device.currentSampleRate
+        if maxRate >= 705600 { return "DSD512" }
+        if maxRate >= 384000 { return "DSD / DXD" }
         if maxRate >= 192000 { return "Hi-Res" }
         if maxRate >= 96000 { return "Hi-Res" }
         if maxRate >= 48000 { return "CD+" }
