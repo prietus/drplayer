@@ -39,7 +39,10 @@ enum LastFMService {
               let albumObj = json["album"] as? [String: Any],
               let tagObj = albumObj["tags"] as? [String: Any],
               let tagList = tagObj["tag"] as? [[String: Any]] else {
-            MetadataCache.setString(cacheKey, value: "(empty)")
+            // Only cache negative result if we actually had a valid API key
+            if !apiKey.isEmpty {
+                MetadataCache.setString(cacheKey, value: "(empty)")
+            }
             return []
         }
 

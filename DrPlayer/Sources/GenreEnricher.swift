@@ -65,8 +65,12 @@ enum GenreEnricher {
         var seen = Set<String>()
         let unique = enriched.filter { seen.insert($0.lowercased()).inserted }
 
-        // Cache result (even if empty, to avoid re-fetching)
-        saveCache(key: cacheKey, genres: unique)
+        // Cache result — but only cache empty results if API keys are configured.
+        // If keys are missing, don't cache so it retries when they're added.
+        let hasApiKeys = !AppSettings.shared.lastfmApiKey.isEmpty || !AppSettings.shared.discogsKey.isEmpty
+        if !unique.isEmpty || hasApiKeys {
+            saveCache(key: cacheKey, genres: unique)
+        }
 
         return unique
     }

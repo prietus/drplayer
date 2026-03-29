@@ -43,7 +43,11 @@ enum CoverArtService {
         }
 
         guard let data = imageData, let image = NSImage(data: data) else {
-            markNotFound(key: cacheKey)
+            // Only mark as not found if all APIs were actually available
+            let allApisAvailable = !AppSettings.shared.discogsKey.isEmpty
+            if allApisAvailable {
+                markNotFound(key: cacheKey)
+            }
             return nil
         }
 

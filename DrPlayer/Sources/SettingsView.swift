@@ -221,6 +221,22 @@ private struct GeneralTab: View {
                             .foregroundColor(.orange)
                     }
                 }
+
+                Divider()
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Purge Metadata Caches")
+                            .font(.body)
+                        Text("Clears cached genres, covers, and API results. Re-fetches using current API keys.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Purge") {
+                        purgeMetadataCaches()
+                    }
+                }
             }
             .confirmationDialog("Rebuild MPD Database?", isPresented: $showRebuildConfirm) {
                 Button("Rebuild", role: .destructive) {
@@ -336,6 +352,30 @@ private struct GeneralTab: View {
                     rebuildInProgress = false
                     rebuildResult = .failure(error.localizedDescription)
                 }
+            }
+        }
+    }
+
+    private func purgeMetadataCaches() {
+        let fm = FileManager.default
+        let home = NSHomeDirectory()
+        let dirs = [
+            "\(home)/.drplayer/metadata",
+            "\(home)/.drplayer/genres",
+            "\(home)/.drplayer/covers",
+        ]
+        for dir in dirs {
+            if let files = try? fm.contentsOfDirectory(atPath: dir) {
+                for file in files {
+                    try? fm.removeItem(atPath: "\(dir)/\(file)")
+                }
+            }
+        }
+        // Also clear .notfound markers in covers
+        let coverDir = "\(home)/.drplayer/covers"
+        if let files = try? fm.contentsOfDirectory(atPath: coverDir) {
+            for file in files where file.hasSuffix(".notfound") {
+                try? fm.removeItem(atPath: "\(coverDir)/\(file)")
             }
         }
     }
