@@ -31,6 +31,7 @@ private struct GeneralTab: View {
     @State private var discogsSecret = AppSettings.shared.discogsSecret
     @State private var testResult: TestResult?
     @State private var detectedConf: String?
+    @State private var mpdConf: AppSettings.MPDConf?
 
     private enum TestResult {
         case success
@@ -136,12 +137,68 @@ private struct GeneralTab: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+
+            // MPD Configuration Health Check
+            if let conf = mpdConf {
+                Section("mpd.conf") {
+                    if let path = conf.confPath {
+                        Text(path)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+
+                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
+                        healthRow("sticker_file",
+                                  ok: conf.stickerFile != nil,
+                                  detail: conf.stickerFile ?? "missing — preferred versions won't persist")
+
+                        healthRow("follow_outside_symlinks",
+                                  ok: conf.followOutsideSymlinks,
+                                  detail: conf.followOutsideSymlinks ? "yes" : "no — music sources via symlinks won't work")
+
+                        healthRow("follow_inside_symlinks",
+                                  ok: conf.followInsideSymlinks,
+                                  detail: conf.followInsideSymlinks ? "yes" : "no — nested symlinks won't resolve")
+
+                        healthRow("replaygain",
+                                  ok: conf.replaygain == "off" || conf.replaygain == nil,
+                                  detail: conf.replaygain ?? "not set (bitperfect)")
+
+                        healthRow("auto_update",
+                                  ok: true,
+                                  detail: conf.autoUpdate ? "yes" : "no — run `mpc update` manually after adding music")
+
+                        healthRow("db_file",
+                                  ok: conf.dbFile != nil,
+                                  detail: conf.dbFile ?? "not set")
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         .padding()
         .onAppear {
             let detected = AppSettings.detectFromMPDConf()
             detectedConf = detected.confPath
+            mpdConf = detected
+        }
+    }
+
+    @ViewBuilder
+    private func healthRow(_ key: String, ok: Bool, detail: String) -> some View {
+        GridRow {
+            Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundColor(ok ? .green : .orange)
+            Text(key)
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+                .frame(width: 170, alignment: .leading)
+            Text(detail)
+                .font(.caption)
+                .foregroundColor(ok ? .secondary : .orange)
+                .lineLimit(1)
         }
     }
 

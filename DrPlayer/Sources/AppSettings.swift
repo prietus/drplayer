@@ -190,6 +190,12 @@ class AppSettings {
         var host: String?
         var port: Int?
         var confPath: String?
+        var stickerFile: String?
+        var followOutsideSymlinks: Bool = false
+        var followInsideSymlinks: Bool = false
+        var replaygain: String?
+        var autoUpdate: Bool = false
+        var dbFile: String?
     }
 
     /// Auto-detect settings from mpd.conf
@@ -216,6 +222,18 @@ class AppSettings {
                 conf.host = val
             } else if let val = extractValue(line: trimmed, key: "port") {
                 conf.port = Int(val)
+            } else if let val = extractValue(line: trimmed, key: "sticker_file") {
+                conf.stickerFile = expandPath(val)
+            } else if let val = extractValue(line: trimmed, key: "follow_outside_symlinks") {
+                conf.followOutsideSymlinks = val.lowercased() == "yes"
+            } else if let val = extractValue(line: trimmed, key: "follow_inside_symlinks") {
+                conf.followInsideSymlinks = val.lowercased() == "yes"
+            } else if let val = extractValue(line: trimmed, key: "replaygain") {
+                conf.replaygain = val
+            } else if let val = extractValue(line: trimmed, key: "auto_update") {
+                conf.autoUpdate = val.lowercased() == "yes"
+            } else if let val = extractValue(line: trimmed, key: "db_file") {
+                conf.dbFile = expandPath(val)
             }
         }
         return conf.musicDir != nil ? conf : nil
