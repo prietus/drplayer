@@ -18,6 +18,8 @@ struct AlbumDetailView: View {
     let onToggleFavorite: (Track) -> Void
     let onSelectGenre: (String) -> Void
     let onSearch: (String) -> Void
+    var onSelectLabel: ((String) -> Void)? = nil
+    var onSelectCountry: ((String) -> Void)? = nil
     var onScanDR: ((Int) async -> Void)? = nil
 
     @State private var cover: NSImage?
@@ -267,9 +269,19 @@ struct AlbumDetailView: View {
                     Text("Label")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
-                    Text(label)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let onSelectLabel {
+                        Button { onSelectLabel(label) } label: {
+                            Text(label)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+                    } else {
+                        Text(label)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             if let catalog = releaseCatalog, !catalog.isEmpty {
@@ -287,9 +299,19 @@ struct AlbumDetailView: View {
                     Text("Country")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
-                    Text(country)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let onSelectCountry {
+                        Button { onSelectCountry(country) } label: {
+                            Text(country)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+                    } else {
+                        Text(country)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             if artworkCount > 0 {

@@ -64,7 +64,9 @@ enum LoudnessWarService {
             "artist": artist,
             "album": cleanedAlbum
         ]
-        let query = params.map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")" }
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: "'+&=")
+        let query = params.map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")" }
             .joined(separator: "&")
         let urlStr = "\(baseURL)?\(query)"
         guard let url = URL(string: urlStr) else { return [] }

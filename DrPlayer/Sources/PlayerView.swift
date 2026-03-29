@@ -5,7 +5,7 @@ struct PlayerView: View {
     @State private var selectedAlbum: Album? = nil
     @State private var showQueue = false
     @State private var showLyrics = false
-    @State private var genreFilter: String? = nil
+    @State private var albumFilter: AlbumFilter? = nil
     @State private var lastAlbumId: String? = nil
     @State private var showSearch = false
     @State private var searchText = ""
@@ -20,19 +20,60 @@ struct PlayerView: View {
         case composers = "Composers"
     }
 
-    private var filteredAlbums: [Album] {
-        guard let genre = genreFilter else { return vm.albums }
-        let lower = genre.lowercased()
-        return vm.albums.filter { album in
-            album.genres.contains { $0.lowercased() == lower }
+    enum AlbumFilter {
+        case genre(String)
+        case label(String)
+        case country(String)
+
+        var displayName: String {
+            switch self {
+            case .genre(let v): return v.uppercased()
+            case .label(let v): return v
+            case .country(let v): return v
+            }
         }
+
+        var icon: String {
+            switch self {
+            case .genre: return "tag.fill"
+            case .label: return "building.2"
+            case .country: return "globe"
+            }
+        }
+
+        func matches(_ album: Album) -> Bool {
+            switch self {
+            case .genre(let g):
+                let lower = g.lowercased()
+                return album.genres.contains { $0.lowercased() == lower }
+            case .label(let l):
+                let lower = l.lowercased()
+                return album.label.lowercased() == lower
+                    || album.tracks.contains { $0.label.lowercased() == lower }
+            case .country(let c):
+                let upper = c.uppercased()
+                return album.tracks.contains { $0.country.uppercased() == upper }
+            }
+        }
+    }
+
+    private var filteredAlbums: [Album] {
+        guard let filter = albumFilter else { return vm.albums }
+        return vm.albums.filter { filter.matches($0) }
     }
 
     var body: some View {
         ZStack {
         VStack(spacing: 0) {
             // Now playing bar
-            NowPlayingBar(vm: vm, showSearch: $showSearch, showLyrics: $showLyrics, showQueue: $showQueue, onTapCover: { showFullPlayer = true })
+            NowPlayingBar(vm: vm, showSearch: $showSearch, showLyrics: $showLyrics, showQueue: $showQueue, onTapCover: { showFullPlayer = true }, onTapAlbum: {
+                // Navigate to the album of the currently playing track
+                if let album = vm.albums.first(where: { $0.title == vm.currentAlbum && $0.artist == vm.currentArtist }) {
+                    selectedAlbum = album
+                } else if let album = vm.albums.first(where: { $0.title == vm.currentAlbum }) {
+                    selectedAlbum = album
+                }
+            })
 
             Divider()
 
@@ -73,14 +114,14 @@ struct PlayerView: View {
                             .pickerStyle(.segmented)
                             .frame(maxWidth: 400)
 
-                            if let genre = genreFilter, browseMode == .albums {
+                            if let filter = albumFilter, browseMode == .albums {
                                 HStack(spacing: 4) {
-                                    Image(systemName: "tag.fill")
+                                    Image(systemName: filter.icon)
                                         .font(.caption2)
-                                    Text(genre.uppercased())
+                                    Text(filter.displayName)
                                         .font(.caption2.bold())
                                     Button {
-                                        genreFilter = nil
+                                        albumFilter = nil
                                     } label: {
                                         Image(systemName: "xmark.circle.fill")
                                             .font(.caption)
@@ -117,7 +158,7 @@ struct PlayerView: View {
                                 artists: vm.allArtists,
                                 onSelectArtist: { artist in
                                     // Show this artist's albums in album grid
-                                    genreFilter = nil
+                                    albumFilter = nil
                                     browseMode = .albums
                                     // Use first album as selection
                                     if let first = artist.albums.first {
@@ -202,12 +243,20 @@ struct PlayerView: View {
                             Task { await vm.toggleFavorite(track: track) }
                         },
                         onSelectGenre: { genre in
-                            genreFilter = genre
+                            albumFilter = .genre(genre)
                             selectedAlbum = nil
                         },
                         onSearch: { query in
                             searchText = query
                             showSearch = true
+                        },
+                        onSelectLabel: { label in
+                            albumFilter = .label(label)
+                            selectedAlbum = nil
+                        },
+                        onSelectCountry: { country in
+                            albumFilter = .country(country)
+                            selectedAlbum = nil
                         },
                         onScanDR: { albumIdx in
                             await vm.scanDR14ForAlbum(albumIdx: albumIdx)
@@ -290,6 +339,7 @@ struct NowPlayingBar: View {
     @Binding var showLyrics: Bool
     @Binding var showQueue: Bool
     var onTapCover: () -> Void = {}
+    var onTapAlbum: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 6) {
@@ -316,9 +366,19 @@ struct NowPlayingBar: View {
                             Text("—")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
-                            Text(vm.currentAlbum)
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
+                            if let onTapAlbum {
+                                Button(action: onTapAlbum) {
+                                    Text(vm.currentAlbum)
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .buttonStyle(.plain)
+                                .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+                            } else {
+                                Text(vm.currentAlbum)
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
                         }
                     }
                 }
