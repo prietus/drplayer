@@ -383,6 +383,10 @@ private struct AudioOutputsTab: View {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding()
+                } else if let err = loadError {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundColor(.red)
                 } else if outputs.isEmpty {
                     Text("No audio outputs found in MPD")
                         .foregroundStyle(.secondary)
@@ -608,11 +612,15 @@ private struct AudioOutputsTab: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)))
     }
 
+    @State private var loadError: String?
+
     private func loadOutputs() async {
         let settings = AppSettings.shared
         let client = MPDClient(host: settings.mpdHost, port: UInt16(settings.mpdPort))
-        if let outs = try? await client.outputs() {
-            outputs = outs
+        do {
+            outputs = try await client.outputs()
+        } catch {
+            loadError = "Cannot connect to MPD: \(error.localizedDescription)"
         }
         loading = false
     }
