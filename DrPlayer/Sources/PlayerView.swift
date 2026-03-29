@@ -136,6 +136,10 @@ struct PlayerView: View {
                             }
 
                             Spacer()
+
+                            Text(libraryStats)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 6)
@@ -332,6 +336,12 @@ struct PlayerView: View {
             }
             .interactiveDismissDisabled()
         }
+    }
+
+    private var libraryStats: String {
+        let albumCount = vm.albums.count
+        let trackCount = vm.albums.reduce(0) { $0 + $1.tracks.count }
+        return "\(albumCount) albums · \(trackCount) tracks"
     }
 }
 
@@ -555,7 +565,8 @@ struct NowPlayingBar: View {
         let ch = channels == "2" ? "stereo" : channels == "1" ? "mono" : "\(channels)ch"
 
         if rate.hasPrefix("dsd") {
-            return "\(rate) \(ch)"
+            let mult = rate.dropFirst(3)
+            return "DSD\(mult) DoP \(ch)"
         }
 
         if let sampleRate = Int(rate) {

@@ -106,16 +106,19 @@ struct DRComparisonPopover: View {
         let isBetter = entry.drAvg > myDR
         let isWorse = entry.drAvg < myDR
 
-        return Button {
-            if let url = URL(string: "https://dr.loudness-war.info/album/view/\(entry.id)") {
-                NSWorkspace.shared.open(url)
+        return HStack(spacing: 0) {
+            Button {
+                if let url = URL(string: "https://dr.loudness-war.info/album/view/\(entry.id)") {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                Text(entry.album)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-        } label: {
-        HStack(spacing: 0) {
-            Text(entry.album)
-                .font(.caption)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            .buttonStyle(.plain)
+            .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
 
             Text(entry.year)
                 .font(.caption.monospaced())
@@ -154,10 +157,6 @@ struct DRComparisonPopover: View {
             isWorse ? Color.red.opacity(0.04) :
             Color.clear
         )
-        .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
     }
 
     private func drColor(_ dr: Int) -> Color {

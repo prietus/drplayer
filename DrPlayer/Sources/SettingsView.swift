@@ -1,5 +1,9 @@
 import SwiftUI
 
+extension Notification.Name {
+    static let mpdDatabaseRebuilt = Notification.Name("mpdDatabaseRebuilt")
+}
+
 struct SettingsView: View {
     var body: some View {
         TabView {
@@ -32,8 +36,16 @@ private struct GeneralTab: View {
     @State private var testResult: TestResult?
     @State private var detectedConf: String?
     @State private var mpdConf: AppSettings.MPDConf?
+    @State private var rebuildInProgress = false
+    @State private var rebuildResult: RebuildResult?
+    @State private var showRebuildConfirm = false
 
     private enum TestResult {
+        case success
+        case failure(String)
+    }
+
+    private enum RebuildResult {
         case success
         case failure(String)
     }
@@ -175,6 +187,49 @@ private struct GeneralTab: View {
                     }
                 }
             }
+
+            Section("Maintenance") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Rebuild MPD Database")
+                            .font(.body)
+                        Text("Fixes duplicate entries and stale data. Stops MPD, deletes database, and restarts.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if rebuildInProgress {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Button("Rebuild") {
+                            showRebuildConfirm = true
+                        }
+                        .disabled(mpdConf?.dbFile == nil)
+                    }
+                }
+
+                if let result = rebuildResult {
+                    switch result {
+                    case .success:
+                        Label("Database rebuilt — library will reload automatically", systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    case .failure(let msg):
+                        Label(msg, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+            .confirmationDialog("Rebuild MPD Database?", isPresented: $showRebuildConfirm) {
+                Button("Rebuild", role: .destructive) {
+                    rebuildDatabase()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will stop MPD, delete its database, and restart it. The library will be re-scanned from scratch. Favorites and preferred versions (stickers) are preserved.")
+            }
         }
         .formStyle(.grouped)
         .padding()
@@ -230,6 +285,70 @@ private struct GeneralTab: View {
                 }
             }
         }
+    }
+
+    private func rebuildDatabase() {
+        guard let dbFile = mpdConf?.dbFile else { return }
+        rebuildInProgress = true
+        rebuildResult = nil
+
+        Task.detached {
+            do {
+                // 1. Stop MPD — try brew services first, fall back to pkill
+                let mpdPath = AppSettings.mpdPath ?? "mpd"
+                let brewPath = AppSettings.findBinary("brew")
+                if let brew = brewPath {
+                    _ = Self.runShell(brew, args: ["services", "stop", "mpd"])
+                    try await Task.sleep(for: .seconds(1))
+                } else {
+                    _ = Self.runShell("/usr/bin/pkill", args: ["-x", "mpd"])
+                    try await Task.sleep(for: .seconds(1))
+                }
+
+                // 2. Delete database file
+                let fm = FileManager.default
+                let expanded = (dbFile as NSString).expandingTildeInPath
+                if fm.fileExists(atPath: expanded) {
+                    try fm.removeItem(atPath: expanded)
+                }
+
+                // 3. Restart MPD
+                if let brew = brewPath {
+                    _ = Self.runShell(brew, args: ["services", "start", "mpd"])
+                } else {
+                    _ = Self.runShell(mpdPath, args: [])
+                }
+
+                // Give MPD time to start and begin scanning
+                try await Task.sleep(for: .seconds(2))
+
+                await MainActor.run {
+                    rebuildInProgress = false
+                    rebuildResult = .success
+                }
+
+                // Post notification so PlayerViewModel can reload
+                await MainActor.run {
+                    NotificationCenter.default.post(name: .mpdDatabaseRebuilt, object: nil)
+                }
+            } catch {
+                await MainActor.run {
+                    rebuildInProgress = false
+                    rebuildResult = .failure(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    nonisolated private static func runShell(_ path: String, args: [String]) -> Int32 {
+        var pid: pid_t = 0
+        var cArgs = ([path] + args).map { strdup($0) } + [nil]
+        defer { cArgs.forEach { free($0) } }
+        let ret = posix_spawn(&pid, path, nil, nil, &cArgs, environ)
+        guard ret == 0 else { return ret }
+        var status: Int32 = 0
+        waitpid(pid, &status, 0)
+        return status
     }
 }
 

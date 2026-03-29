@@ -192,6 +192,12 @@ class AppSettings {
         // Write config
         let conf = generateMPDConf(musicDir: musicDir, host: host, port: port)
         try conf.write(toFile: "\(mpdDir)/mpd.conf", atomically: true, encoding: .utf8)
+
+        // Ignore .cue files — they create duplicate virtual tracks alongside real files
+        let mpdignore = "\(musicDir)/.mpdignore"
+        if !fm.fileExists(atPath: mpdignore) {
+            try "*.cue\n".write(toFile: mpdignore, atomically: true, encoding: .utf8)
+        }
     }
 
     // MARK: - mpd.conf parsing

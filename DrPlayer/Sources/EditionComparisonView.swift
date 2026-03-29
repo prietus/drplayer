@@ -383,86 +383,85 @@ struct EditionComparisonView: View {
         let matchesMine = myDR > 0 && entry.drAvg == myDR
         let isBetter = myDR > 0 && entry.drAvg > myDR
 
-        return Button {
-            if let url = URL(string: "https://dr.loudness-war.info/album/view/\(entry.id)") {
-                NSWorkspace.shared.open(url)
-            }
-        } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                // Row 1: album title + DR + year
-                HStack(spacing: 6) {
+        return VStack(alignment: .leading, spacing: 3) {
+            // Row 1: album title (clickable → loudness-war.info) + DR + year
+            HStack(spacing: 6) {
+                Button {
+                    if let url = URL(string: "https://dr.loudness-war.info/album/view/\(entry.id)") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
                     Text(entry.album)
                         .font(.callout)
                         .lineLimit(1)
-
-                    Spacer()
-
-                    Text("DR\(entry.drAvg)")
-                        .font(.caption.bold().monospaced())
-                        .foregroundColor(drColor(entry.drAvg))
-                    Text("(\(entry.drMin)–\(entry.drMax))")
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.tertiary)
                 }
+                .buttonStyle(.plain)
+                .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
 
-                // Row 2: codec, source, year
-                HStack(spacing: 6) {
-                    Text(entry.codec)
-                        .font(.caption2.monospaced().bold())
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(RoundedRectangle(cornerRadius: 3).fill(
-                            entry.codec.lowercased().contains("lossless") ? Color.blue.opacity(0.15) : Color.orange.opacity(0.15)
-                        ))
-                        .foregroundColor(entry.codec.lowercased().contains("lossless") ? .blue : .orange)
+                Spacer()
 
-                    Text(entry.source)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                Text("DR\(entry.drAvg)")
+                    .font(.caption.bold().monospaced())
+                    .foregroundColor(drColor(entry.drAvg))
+                Text("(\(entry.drMin)–\(entry.drMax))")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.tertiary)
+            }
 
-                    Text(entry.year)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
+            // Row 2: codec, source, year
+            HStack(spacing: 6) {
+                Text(entry.codec)
+                    .font(.caption2.monospaced().bold())
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(RoundedRectangle(cornerRadius: 3).fill(
+                        entry.codec.lowercased().contains("lossless") ? Color.blue.opacity(0.15) : Color.orange.opacity(0.15)
+                    ))
+                    .foregroundColor(entry.codec.lowercased().contains("lossless") ? .blue : .orange)
 
-                // Row 3: label, catalog, country (from detail page)
-                let details = [entry.label, entry.catalogNumber, entry.country].filter { !$0.isEmpty }
-                if !details.isEmpty {
-                    HStack(spacing: 8) {
-                        if !entry.label.isEmpty {
-                            HStack(spacing: 3) {
-                                Text(String(localized: "Label", defaultValue: "Label"))
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                                Text(entry.label)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        if !entry.catalogNumber.isEmpty {
-                            Text(entry.catalogNumber)
-                                .font(.caption2.monospaced())
-                                .foregroundStyle(.secondary)
-                        }
-                        if !entry.country.isEmpty {
-                            Text(entry.country)
+                Text(entry.source)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                Text(entry.year)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
+            // Row 3: label, catalog, country (from detail page)
+            let details = [entry.label, entry.catalogNumber, entry.country].filter { !$0.isEmpty }
+            if !details.isEmpty {
+                HStack(spacing: 8) {
+                    if !entry.label.isEmpty {
+                        HStack(spacing: 3) {
+                            Text(String(localized: "Label", defaultValue: "Label"))
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            Text(entry.label)
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    if !entry.catalogNumber.isEmpty {
+                        Text(entry.catalogNumber)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                    }
+                    if !entry.country.isEmpty {
+                        Text(entry.country)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 6)
-            .background(
-                matchesMine ? Color.accentColor.opacity(0.08) :
-                isBetter ? Color.green.opacity(0.04) :
-                Color.clear
-            )
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+        .padding(.horizontal)
+        .padding(.vertical, 6)
+        .background(
+            matchesMine ? Color.accentColor.opacity(0.08) :
+            isBetter ? Color.green.opacity(0.04) :
+            Color.clear
+        )
     }
 
     // MARK: - Helpers
@@ -512,6 +511,7 @@ struct EditionComparisonView: View {
     /// Clean album title for API searches
     private func cleanTitle(_ title: String) -> String {
         var cleaned = title
+        cleaned = cleaned.trimmingCharacters(in: CharacterSet(charactersIn: "\"\u{201C}\u{201D}\u{00AB}\u{00BB}"))
         if let range = cleaned.range(of: #"^\d{4}\s+"#, options: .regularExpression) {
             cleaned.removeSubrange(range)
         }

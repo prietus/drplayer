@@ -96,7 +96,7 @@ private struct SignalPathPopover: View {
 
                     signalNode(
                         icon: "arrow.triangle.2.circlepath",
-                        title: "Rate Match → \(CoreAudioDevices.formatRate(vm.matchedSampleRate))",
+                        title: "Rate Match → \(matchedRateLabel)",
                         detail: vm.matchedDeviceName,
                         color: .green
                     )
@@ -208,6 +208,16 @@ private struct SignalPathPopover: View {
             parts.append("DoP")
         }
         return parts.joined(separator: " · ")
+    }
+
+    private var matchedRateLabel: String {
+        let fmt = vm.audioFormat.lowercased()
+        if fmt.hasPrefix("dsd"),
+           let token = fmt.split(separator: ":").first,
+           let mult = Int(token.dropFirst(3)) {
+            return "DSD\(mult) (DoP)"
+        }
+        return CoreAudioDevices.formatRate(vm.matchedSampleRate)
     }
 
     private func channelLabel(_ ch: String) -> String {

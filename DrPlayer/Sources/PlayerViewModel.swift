@@ -64,9 +64,19 @@ class PlayerViewModel {
     private var lastSampleRate: Double = 0
     private var isSwitchingRate = false
 
+    private var dbRebuildObserver: Any?
+
     init() {
         let settings = AppSettings.shared
         self.mpd = MPDClient(host: settings.mpdHost, port: UInt16(settings.mpdPort))
+
+        dbRebuildObserver = NotificationCenter.default.addObserver(
+            forName: .mpdDatabaseRebuilt, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.albums = []
+            Task { await self.loadLibrary() }
+        }
     }
 
     func start() {

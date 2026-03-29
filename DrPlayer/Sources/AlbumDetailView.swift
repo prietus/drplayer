@@ -554,6 +554,7 @@ struct AlbumDetailView: View {
     /// Clean album title for API searches
     private func cleanTitleForSearch(_ title: String) -> String {
         var cleaned = title
+        cleaned = cleaned.trimmingCharacters(in: CharacterSet(charactersIn: "\"\u{201C}\u{201D}\u{00AB}\u{00BB}"))
         if let range = cleaned.range(of: #"^\d{4}\s+"#, options: .regularExpression) {
             cleaned.removeSubrange(range)
         }

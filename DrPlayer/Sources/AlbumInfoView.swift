@@ -339,6 +339,8 @@ struct AlbumInfoView: View {
     /// "Beat SHM-CD Legacy Collection 1980" → "Beat"
     private func cleanTitle(_ title: String) -> String {
         var cleaned = title
+        // Strip surrounding quotes: "Heroes" → Heroes
+        cleaned = cleaned.trimmingCharacters(in: CharacterSet(charactersIn: "\"\u{201C}\u{201D}\u{00AB}\u{00BB}"))
         // Remove leading year prefix: "1974 Burn" → "Burn"
         if let range = cleaned.range(of: #"^\d{4}\s+"#, options: .regularExpression) {
             cleaned.removeSubrange(range)

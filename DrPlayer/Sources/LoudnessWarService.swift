@@ -22,6 +22,8 @@ enum LoudnessWarService {
     /// Clean album title: remove year prefixes, format suffixes, catalog numbers, etc.
     private static func cleanAlbumTitle(_ title: String) -> String {
         var cleaned = title
+        // Strip surrounding quotes: "Heroes" → Heroes
+        cleaned = cleaned.trimmingCharacters(in: CharacterSet(charactersIn: "\"\u{201C}\u{201D}\u{00AB}\u{00BB}"))
         // Remove leading year prefix: "1972 Demons and Wizards" → "Demons and Wizards"
         if let range = cleaned.range(of: #"^\d{4}\s+"#, options: .regularExpression) {
             cleaned.removeSubrange(range)
