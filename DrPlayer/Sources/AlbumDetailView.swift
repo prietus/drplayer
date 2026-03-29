@@ -547,13 +547,51 @@ struct AlbumDetailView: View {
         return cleaned.trimmingCharacters(in: .whitespaces)
     }
 
+    /// Extract catalog number from album title parentheses.
+    private func extractCatalog(_ title: String) -> String? {
+        let patterns = [
+            #"\(([A-Z]{2,}[\s-]?\d[\w\s-]*)\)"#,
+            #"\((\d+[\s-][A-Z][\w\s-]*)\)"#,
+        ]
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+               let match = regex.firstMatch(in: title, range: NSRange(title.startIndex..., in: title)),
+               let range = Range(match.range(at: 1), in: title) {
+                let candidate = String(title[range])
+                let lower = candidate.lowercased()
+                if lower.contains("remaster") || lower.contains("deluxe") ||
+                   lower.contains("live") || lower.contains("edition") { continue }
+                return candidate
+            }
+        }
+        return nil
+    }
+
+    /// Detect MusicBrainz format hint from album format or title keywords
+    private func detectFormatHint() -> String? {
+        let fmt = album.format.uppercased()
+        let title = album.title.lowercased()
+        if fmt.contains("DSF") || fmt.contains("DFF") || fmt.contains("DSD") ||
+           title.contains("sacd") || title.contains("shm-sacd") { return "SACD" }
+        if title.contains("vinyl") || title.contains(" lp") { return "Vinyl" }
+        return nil
+    }
+
     private func loadReleaseInfo() async {
         let cleanAlbum = cleanTitleForSearch(album.title)
+        let catalogFromTitle = extractCatalog(album.title)
+        let formatHint = detectFormatHint()
 
-        // MusicBrainz
+        // MusicBrainz: catalog → MB ID → format-specific → generic
         var mb: MBRelease?
         if !album.musicbrainzAlbumId.isEmpty {
             mb = await MusicBrainzService.fetchRelease(id: album.musicbrainzAlbumId)
+        }
+        if mb == nil, let catno = catalogFromTitle {
+            mb = await MusicBrainzService.searchByCatalog(artist: album.artist, catno: catno)
+        }
+        if mb == nil, let fmt = formatHint {
+            mb = await MusicBrainzService.searchRelease(artist: album.artist, album: cleanAlbum, format: fmt)
         }
         if mb == nil {
             mb = await MusicBrainzService.searchRelease(artist: album.artist, album: cleanAlbum)
@@ -563,9 +601,12 @@ struct AlbumDetailView: View {
         }
         mbRelease = mb
 
-        // Discogs
+        // Discogs: catalog from title → MB catalog → barcode → search
         var dg: DiscogsRelease?
-        if let catno = mb?.catalogNumber, !catno.isEmpty {
+        if let catno = catalogFromTitle {
+            dg = await DiscogsService.searchByCatalog(catno)
+        }
+        if dg == nil, let catno = mb?.catalogNumber, !catno.isEmpty {
             dg = await DiscogsService.searchByCatalog(catno)
         }
         if dg == nil, let barcode = mb?.barcode, !barcode.isEmpty {

@@ -32,29 +32,71 @@ enum MusicBrainzService {
 
     // MARK: - Release search
 
-    static func searchRelease(artist: String, album: String) async -> MBRelease? {
-        // Check if we already resolved this search
-        let searchCacheKey = "mb_search_release_\(artist.lowercased())_\(album.lowercased())"
+    /// Search by catalog number — most precise for pressing identification
+    static func searchByCatalog(artist: String, catno: String) async -> MBRelease? {
+        let searchCacheKey = "mb_search_catno_\(artist.lowercased())_\(catno.lowercased())"
+        if let cachedId = MetadataCache.getString(searchCacheKey) {
+            return cachedId == "(none)" ? nil : await fetchRelease(id: cachedId)
+        }
+
+        let query = "catno:\(catno) AND artist:\(artist)"
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlStr = "\(baseURL)/release/?query=\(query)&fmt=json&limit=3"
+        guard let url = URL(string: urlStr) else { return nil }
+
+        guard let data = await fetch(url) else { return nil }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let releases = json["releases"] as? [[String: Any]],
+              let best = releases.first,
+              let releaseId = best["id"] as? String else {
+            MetadataCache.setString(searchCacheKey, value: "(none)")
+            return nil
+        }
+
+        MetadataCache.setString(searchCacheKey, value: releaseId)
+        return await fetchRelease(id: releaseId)
+    }
+
+    /// Search by artist + album title, optionally preferring a format (e.g. "SACD", "Vinyl")
+    static func searchRelease(artist: String, album: String, format: String? = nil) async -> MBRelease? {
+        let formatSuffix = format.map { "_fmt_\($0.lowercased())" } ?? ""
+        let searchCacheKey = "mb_search_release_\(artist.lowercased())_\(album.lowercased())\(formatSuffix)"
         if let cachedId = MetadataCache.getString(searchCacheKey) {
             return cachedId == "(none)" ? nil : await fetchRelease(id: cachedId)
         }
 
         let query = "release:\(album) AND artist:\(artist)"
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlStr = "\(baseURL)/release/?query=\(query)&fmt=json&limit=5"
+        let limit = format != nil ? 25 : 5
+        let urlStr = "\(baseURL)/release/?query=\(query)&fmt=json&limit=\(limit)"
         guard let url = URL(string: urlStr) else { return nil }
 
         guard let data = await fetch(url) else { return nil }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let releases = json["releases"] as? [[String: Any]],
-              let best = releases.first else {
+              !releases.isEmpty else {
             MetadataCache.setString(searchCacheKey, value: "(none)")
             return nil
         }
 
-        let releaseId = best["id"] as? String ?? ""
-        MetadataCache.setString(searchCacheKey, value: releaseId)
+        // If format hint given, try to find a matching release
+        var releaseId = releases.first?["id"] as? String ?? ""
+        if let format {
+            let formatLower = format.lowercased()
+            for rel in releases {
+                let media = rel["media"] as? [[String: Any]] ?? []
+                for medium in media {
+                    let mediaFormat = (medium["format"] as? String ?? "").lowercased()
+                    if mediaFormat.contains(formatLower) {
+                        releaseId = rel["id"] as? String ?? releaseId
+                        break
+                    }
+                }
+                if releaseId != (releases.first?["id"] as? String ?? "") { break }
+            }
+        }
 
+        MetadataCache.setString(searchCacheKey, value: releaseId)
         return await fetchRelease(id: releaseId)
     }
 

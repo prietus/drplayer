@@ -362,15 +362,64 @@ struct AlbumInfoView: View {
         return cleaned.trimmingCharacters(in: .whitespaces)
     }
 
+    /// Extract catalog number from album title parentheses/brackets.
+    /// "A Kind Of Magic (UICY-40261)" → "UICY-40261"
+    /// "Machine Head [SHM-SACD]" → nil (not a catalog number)
+    private func extractCatalog(_ title: String) -> String? {
+        // Match patterns like (UICY-40261), (P28P 25067), (MFSL 1-256)
+        // Catalog numbers typically have letters+digits or digits+letters with dashes/spaces
+        let patterns = [
+            #"\(([A-Z]{2,}[\s-]?\d[\w\s-]*)\)"#,   // (UICY-40261), (P28P 25067)
+            #"\((\d+[\s-][A-Z][\w\s-]*)\)"#,         // (276 441 7)
+        ]
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+               let match = regex.firstMatch(in: title, range: NSRange(title.startIndex..., in: title)),
+               let range = Range(match.range(at: 1), in: title) {
+                let candidate = String(title[range])
+                // Skip common non-catalog parenthesized content
+                let lower = candidate.lowercased()
+                if lower.contains("remaster") || lower.contains("deluxe") ||
+                   lower.contains("live") || lower.contains("edition") ||
+                   lower.contains("bonus") || lower.contains("disc") { continue }
+                return candidate
+            }
+        }
+        return nil
+    }
+
+    /// Detect MusicBrainz format hint from album title keywords or file format
+    private func detectFormatHint(_ title: String) -> String? {
+        let lower = title.lowercased()
+        if lower.contains("sacd") || lower.contains("shm-sacd") || lower.contains("shm sacd") { return "SACD" }
+        if lower.contains("vinyl") || lower.contains("lp") { return "Vinyl" }
+        return nil
+    }
+
     private func loadInfo() async {
         let cleanAlbum = cleanTitle(albumTitle)
+        let catalogFromTitle = extractCatalog(albumTitle)
+        let formatHint = detectFormatHint(albumTitle)
 
-        // MusicBrainz: prefer direct lookup by ID
+        // MusicBrainz: prefer catalog number → MB ID → format-specific → generic
         async let mbRelease: MBRelease? = {
+            // 1. Direct lookup by MusicBrainz ID (most precise)
             if !musicbrainzAlbumId.isEmpty {
                 return await MusicBrainzService.fetchRelease(id: musicbrainzAlbumId)
             }
-            // Try clean title first, then original
+            // 2. Search by catalog number extracted from title
+            if let catno = catalogFromTitle {
+                if let r = await MusicBrainzService.searchByCatalog(artist: artist, catno: catno) {
+                    return r
+                }
+            }
+            // 3. Search by title + format hint (e.g. SACD for DSF files)
+            if let fmt = formatHint {
+                if let r = await MusicBrainzService.searchRelease(artist: artist, album: cleanAlbum, format: fmt) {
+                    return r
+                }
+            }
+            // 4. Search by clean title
             if let r = await MusicBrainzService.searchRelease(artist: artist, album: cleanAlbum) {
                 return r
             }
@@ -409,8 +458,11 @@ struct AlbumInfoView: View {
             artistWiki = await WikipediaService.searchArtist(name: artist)
         }
 
-        // Discogs — use clean title
-        if let catno = rel?.catalogNumber, !catno.isEmpty {
+        // Discogs — prefer catalog from title, then MB catalog, then barcode, then search
+        if let catno = catalogFromTitle {
+            discogs = await DiscogsService.searchByCatalog(catno)
+        }
+        if discogs == nil, let catno = rel?.catalogNumber, !catno.isEmpty {
             discogs = await DiscogsService.searchByCatalog(catno)
         }
         if discogs == nil, let barcode = rel?.barcode, !barcode.isEmpty {

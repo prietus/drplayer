@@ -596,15 +596,39 @@ struct EditionComparisonView: View {
         }
     }
 
+    /// Extract catalog number from album title parentheses.
+    private func extractCatalog(_ title: String) -> String? {
+        let patterns = [
+            #"\(([A-Z]{2,}[\s-]?\d[\w\s-]*)\)"#,
+            #"\((\d+[\s-][A-Z][\w\s-]*)\)"#,
+        ]
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+               let match = regex.firstMatch(in: title, range: NSRange(title.startIndex..., in: title)),
+               let range = Range(match.range(at: 1), in: title) {
+                let candidate = String(title[range])
+                let lower = candidate.lowercased()
+                if lower.contains("remaster") || lower.contains("deluxe") ||
+                   lower.contains("live") || lower.contains("edition") { continue }
+                return candidate
+            }
+        }
+        return nil
+    }
+
     private func loadReleaseInfo() async {
         // Load MusicBrainz + Discogs for each local edition
         for edition in myEditions {
             let cleanAlbum = cleanTitle(edition.title)
+            let catalogFromTitle = extractCatalog(edition.title)
 
-            // MusicBrainz
+            // MusicBrainz: catalog → ID → title
             var mb: MBRelease?
             if !edition.musicbrainzAlbumId.isEmpty {
                 mb = await MusicBrainzService.fetchRelease(id: edition.musicbrainzAlbumId)
+            }
+            if mb == nil, let catno = catalogFromTitle {
+                mb = await MusicBrainzService.searchByCatalog(artist: edition.artist, catno: catno)
             }
             if mb == nil {
                 mb = await MusicBrainzService.searchRelease(artist: edition.artist, album: cleanAlbum)
@@ -613,9 +637,12 @@ struct EditionComparisonView: View {
                 releaseInfo[edition.id] = mb
             }
 
-            // Discogs
+            // Discogs: catalog from title → MB catalog → barcode → search
             var dg: DiscogsRelease?
-            if let catno = mb?.catalogNumber, !catno.isEmpty {
+            if let catno = catalogFromTitle {
+                dg = await DiscogsService.searchByCatalog(catno)
+            }
+            if dg == nil, let catno = mb?.catalogNumber, !catno.isEmpty {
                 dg = await DiscogsService.searchByCatalog(catno)
             }
             if dg == nil, let barcode = mb?.barcode, !barcode.isEmpty {
