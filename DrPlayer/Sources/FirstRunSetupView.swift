@@ -78,6 +78,14 @@ struct FirstRunSetupView: View {
                 Spacer()
 
                 if deps.allSatisfied {
+                    if sources.isEmpty && detectedConf != nil {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text("No music sources added")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+
                     Button("Test connection") {
                         testConnection()
                     }
@@ -299,17 +307,37 @@ struct FirstRunSetupView: View {
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        AppSettings.shared.musicLibraryPath = musicPath
         let name = url.lastPathComponent
-        try? AppSettings.shared.addMusicSource(name: name, targetPath: url.path)
+        let linkPath = "\(musicPath)/\(name)"
+        let fm = FileManager.default
+        do {
+            try fm.createDirectory(atPath: musicPath, withIntermediateDirectories: true)
+            try fm.createSymbolicLink(atPath: linkPath, withDestinationPath: url.path)
+        } catch {
+            confError = error.localizedDescription
+        }
         refreshSources()
     }
 
     private func refreshSources() {
-        let savedPath = AppSettings.shared.musicLibraryPath
-        AppSettings.shared.musicLibraryPath = musicPath
-        sources = AppSettings.shared.listMusicSources()
-        AppSettings.shared.musicLibraryPath = savedPath
+        let fm = FileManager.default
+        guard let entries = try? fm.contentsOfDirectory(atPath: musicPath) else {
+            sources = []
+            return
+        }
+        sources = entries.sorted().compactMap { entry in
+            let fullPath = "\(musicPath)/\(entry)"
+            if let attrs = try? fm.attributesOfItem(atPath: fullPath),
+               attrs[.type] as? FileAttributeType == .typeSymbolicLink {
+                let target = (try? fm.destinationOfSymbolicLink(atPath: fullPath)) ?? fullPath
+                return AppSettings.MusicSource(id: entry, name: entry, target: target)
+            }
+            var isDir: ObjCBool = false
+            if fm.fileExists(atPath: fullPath, isDirectory: &isDir), isDir.boolValue {
+                return AppSettings.MusicSource(id: entry, name: entry, target: fullPath)
+            }
+            return nil
+        }
     }
 
     private func testConnection() {
@@ -342,6 +370,13 @@ struct FirstRunSetupView: View {
             settings.mpdPort = port
         }
         settings.hasCompletedSetup = true
+
+        // Trigger MPD database update if sources were added
+        if !sources.isEmpty {
+            let client = MPDClient(host: mpdHost, port: UInt16(mpdPort) ?? 6600)
+            Task { try? await client.command("update") }
+        }
+
         onComplete()
     }
 }
