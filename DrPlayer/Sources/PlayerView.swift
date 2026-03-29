@@ -10,6 +10,7 @@ struct PlayerView: View {
     @State private var showSearch = false
     @State private var searchText = ""
     @State private var showFullPlayer = false
+    @State private var showVisualizer = false
     @State private var showSetup = !AppSettings.shared.hasCompletedSetup
     @State private var browseMode: BrowseMode = .albums
 
@@ -67,7 +68,7 @@ struct PlayerView: View {
         ZStack {
         VStack(spacing: 0) {
             // Now playing bar
-            NowPlayingBar(vm: vm, showSearch: $showSearch, showLyrics: $showLyrics, showQueue: $showQueue, onTapCover: { showFullPlayer = true }, onTapAlbum: {
+            NowPlayingBar(vm: vm, showSearch: $showSearch, showLyrics: $showLyrics, showQueue: $showQueue, showVisualizer: $showVisualizer, onTapCover: { showFullPlayer = true }, onTapAlbum: {
                 // Navigate to the album of the currently playing track
                 if let album = vm.currentPlayingAlbum {
                     Task {
@@ -331,6 +332,13 @@ struct PlayerView: View {
             }
             } // end HStack
 
+            // Oscilloscope visualizer
+            if showVisualizer && vm.isPlaying {
+                OscilloscopeView()
+                    .frame(height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 0))
+            }
+
             if let error = vm.error {
                 Text(error)
                     .font(.caption)
@@ -371,6 +379,7 @@ struct NowPlayingBar: View {
     @Binding var showSearch: Bool
     @Binding var showLyrics: Bool
     @Binding var showQueue: Bool
+    @Binding var showVisualizer: Bool
     var onTapCover: () -> Void = {}
     var onTapAlbum: (() -> Void)? = nil
 
@@ -520,6 +529,12 @@ struct NowPlayingBar: View {
                         .foregroundColor(showQueue ? .accentColor : .primary)
                 }
                 .help("Play queue (\(vm.playlist.count) tracks)")
+
+                Button { showVisualizer.toggle() } label: {
+                    Image(systemName: "waveform.path")
+                        .foregroundColor(showVisualizer ? .accentColor : .primary)
+                }
+                .help("Oscilloscope")
 
                 Button {
                     if vm.radioEnabled {

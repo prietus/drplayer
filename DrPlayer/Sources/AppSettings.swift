@@ -175,7 +175,34 @@ class AppSettings {
             name            "Default Output"
             mixer_type      "none"
         }
+
+        audio_output {
+            type            "fifo"
+            name            "Visualizer"
+            path            "/tmp/mpd.fifo"
+            format          "44100:16:2"
+        }
         """
+    }
+
+    static let fifoPath = "/tmp/mpd.fifo"
+
+    /// Ensure FIFO output exists in mpd.conf for the visualizer
+    static func ensureFifoOutput() {
+        guard let confPath = detectFromMPDConf().confPath,
+              let content = try? String(contentsOfFile: confPath, encoding: .utf8) else { return }
+        guard !content.contains("\"fifo\"") else { return }
+
+        let fifoBlock = """
+
+        audio_output {
+            type            "fifo"
+            name            "Visualizer"
+            path            "\(fifoPath)"
+            format          "44100:16:2"
+        }
+        """
+        try? (content + fifoBlock).write(toFile: confPath, atomically: true, encoding: .utf8)
     }
 
     /// Write mpd.conf and create required directories
