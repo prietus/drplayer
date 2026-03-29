@@ -541,7 +541,19 @@ struct AlbumDetailView: View {
         while let range = cleaned.range(of: #"\s*\[[^\]]*\]\s*$"#, options: .regularExpression) {
             cleaned.removeSubrange(range)
         }
+        if let range = cleaned.range(of: #"\s+(SHM-CD|SHM-SACD|HDCD|MQA-CD|XRCD|K2HD|HQCD|Blu-spec CD|UHQCD).*$"#, options: [.regularExpression, .caseInsensitive]) {
+            cleaned.removeSubrange(range)
+        }
+        if let range = cleaned.range(of: #"\s+(Legacy|Anniversary|Collector|Limited|Special)\s+(Collection|Edition).*$"#, options: [.regularExpression, .caseInsensitive]) {
+            cleaned.removeSubrange(range)
+        }
         if let range = cleaned.range(of: #"\s*-\s*(remaster|deluxe|bonus).*$"#, options: [.regularExpression, .caseInsensitive]) {
+            cleaned.removeSubrange(range)
+        }
+        if let range = cleaned.range(of: #"\s*-\s*(CD|Disc)\s.*$"#, options: [.regularExpression, .caseInsensitive]) {
+            cleaned.removeSubrange(range)
+        }
+        if let range = cleaned.range(of: #"\s+\d{4}\s*$"#, options: .regularExpression) {
             cleaned.removeSubrange(range)
         }
         return cleaned.trimmingCharacters(in: .whitespaces)
