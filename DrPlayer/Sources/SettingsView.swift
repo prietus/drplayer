@@ -293,11 +293,32 @@ private struct MusicSourcesTab: View {
 
 private struct AudioOutputsTab: View {
     @State private var outputs: [MPDClient.AudioOutput] = []
+    @State private var devices: [AudioDeviceInfo] = []
     @State private var loading = true
 
     var body: some View {
-        Form {
-            Section("Audio outputs") {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // System audio devices (CoreAudio)
+                Text(String(localized: "Audio devices", defaultValue: "Audio devices"))
+                    .font(.headline)
+
+                if devices.isEmpty {
+                    Text("No output devices detected")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                } else {
+                    ForEach(devices) { device in
+                        deviceCard(device)
+                    }
+                }
+
+                Divider()
+
+                // MPD outputs
+                Text(String(localized: "MPD outputs", defaultValue: "MPD outputs"))
+                    .font(.headline)
+
                 if loading {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -305,26 +326,122 @@ private struct AudioOutputsTab: View {
                 } else if outputs.isEmpty {
                     Text("No audio outputs found in MPD")
                         .foregroundStyle(.secondary)
-                        .padding()
+                        .font(.caption)
                 } else {
                     ForEach(outputs, id: \.id) { output in
                         outputRow(output)
                     }
                 }
-            }
 
-            Section {
                 Text("Outputs are defined in mpd.conf. From here you can only enable or disable them.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+            .padding()
         }
-        .formStyle(.grouped)
-        .padding()
         .task {
+            devices = CoreAudioDevices.listOutputDevices()
             await loadOutputs()
         }
     }
+
+    // MARK: - CoreAudio Device Card
+
+    private func deviceCard(_ device: AudioDeviceInfo) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Name + transport badge
+            HStack(spacing: 8) {
+                Image(systemName: deviceIcon(device))
+                    .font(.title2)
+                    .foregroundColor(transportColor(device.transport))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(device.name)
+                        .font(.callout.bold())
+                    if !device.manufacturer.isEmpty && device.manufacturer != device.name {
+                        Text(device.manufacturer)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                // Transport badge
+                Text(device.transport)
+                    .font(.caption2.bold())
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(RoundedRectangle(cornerRadius: 4).fill(transportColor(device.transport).opacity(0.15)))
+                    .foregroundColor(transportColor(device.transport))
+
+                // Quality tier
+                Text(CoreAudioDevices.qualityTier(device))
+                    .font(.caption2.bold())
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(RoundedRectangle(cornerRadius: 4).fill(.green.opacity(0.15)))
+                    .foregroundColor(.green)
+            }
+
+            // Technical details
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 3) {
+                GridRow {
+                    detailLabel(String(localized: "Channels", defaultValue: "Channels"))
+                    Text("\(device.outputChannels)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                GridRow {
+                    detailLabel(String(localized: "Current rate", defaultValue: "Current rate"))
+                    Text(CoreAudioDevices.formatRate(device.currentSampleRate))
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+                GridRow {
+                    detailLabel(String(localized: "Supported rates", defaultValue: "Supported rates"))
+                    Text(device.supportedSampleRates.joined(separator: " · "))
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            .padding(.leading, 36)
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)))
+    }
+
+    private func detailLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .frame(width: 100, alignment: .trailing)
+    }
+
+    private func deviceIcon(_ device: AudioDeviceInfo) -> String {
+        switch device.transport {
+        case "USB": return "cable.connector"
+        case "Built-in": return "laptopcomputer"
+        case "Bluetooth", "Bluetooth LE": return "wave.3.right"
+        case "HDMI": return "tv"
+        case "Thunderbolt": return "bolt.fill"
+        default: return "hifispeaker"
+        }
+    }
+
+    private func transportColor(_ transport: String) -> Color {
+        switch transport {
+        case "USB": return .blue
+        case "Built-in": return .secondary
+        case "Bluetooth", "Bluetooth LE": return .cyan
+        case "HDMI": return .purple
+        case "Thunderbolt": return .orange
+        default: return .secondary
+        }
+    }
+
+    // MARK: - MPD Output Row
 
     private func outputRow(_ output: MPDClient.AudioOutput) -> some View {
         HStack {
@@ -356,6 +473,8 @@ private struct AudioOutputsTab: View {
             ))
             .toggleStyle(.switch)
         }
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)))
     }
 
     private func loadOutputs() async {

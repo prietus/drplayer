@@ -77,6 +77,7 @@ struct NowPlayingFullView: View {
                     .padding()
             }
         }
+        .ignoresSafeArea()
         .onAppear { startImageCycling() }
         .onDisappear { imageTimer?.invalidate() }
         .onChange(of: vm.currentTitle) {

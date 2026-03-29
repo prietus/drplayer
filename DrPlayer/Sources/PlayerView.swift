@@ -208,6 +208,9 @@ struct PlayerView: View {
                         onSearch: { query in
                             searchText = query
                             showSearch = true
+                        },
+                        onScanDR: { albumIdx in
+                            await vm.scanDR14ForAlbum(albumIdx: albumIdx)
                         }
                     )
                     .opacity(showSearch ? 0 : 1)

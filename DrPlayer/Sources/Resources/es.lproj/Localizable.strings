@@ -90,6 +90,8 @@
 "Audio" = "Audio";
 "Tags" = "Tags";
 "Other versions (%d)" = "Otras versiones (%d)";
+"My versions" = "Mis versiones";
+"Source" = "Fuente";
 
 /* Track List */
 "Search tracks..." = "Buscar pistas...";
@@ -101,6 +103,7 @@
 "Sort" = "Ordenar";
 
 /* Version Comparison */
+"Compare editions" = "Comparar ediciones";
 "Compare versions" = "Comparar versiones";
 "BEST" = "MEJOR";
 "PREFERRED" = "PREFERIDA";
@@ -134,6 +137,10 @@
 "MPD Connection" = "Conexion MPD";
 "Music sources" = "Fuentes de musica";
 "Audio outputs" = "Salidas de audio";
+"Audio devices" = "Dispositivos de audio";
+"MPD outputs" = "Salidas MPD";
+"Current rate" = "Frecuencia actual";
+"Supported rates" = "Frecuencias soportadas";
 "Test connection" = "Probar conexion";
 "Connected" = "Conectado";
 "Choose..." = "Elegir...";

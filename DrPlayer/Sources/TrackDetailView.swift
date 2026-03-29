@@ -23,7 +23,6 @@ struct TrackDetailView: View {
     let onEnqueue: () -> Void
     let onPlayFile: (String) -> Void
     let onDismiss: () -> Void
-
     @State private var metadata: TrackMetadata?
     @State private var loading = true
 
@@ -61,15 +60,18 @@ struct TrackDetailView: View {
                     // DR info
                     if let dr = track.dr, dr > 0 {
                         Divider().padding(.horizontal)
-                        sectionTitle("Dynamic Range")
+                        sectionTitle(String(localized: "Dynamic Range", defaultValue: "Dynamic Range"))
                         drSection(dr)
                     }
 
-                    // Other versions
+                    // Other versions of this track (basic list)
                     let versions = findOtherVersions()
                     if !versions.isEmpty {
                         Divider().padding(.horizontal)
-                        sectionTitle("Other versions (\(versions.count))")
+                        sectionTitle(String(
+                            localized: "Other versions (%d)",
+                            defaultValue: "Other versions (\(versions.count))"
+                        ))
                         otherVersionsSection(versions)
                     }
                 }
@@ -330,7 +332,6 @@ struct TrackDetailView: View {
         VStack(spacing: 0) {
             ForEach(versions) { version in
                 HStack(spacing: 10) {
-                    // Play button
                     Button {
                         onPlayFile(version.track.file)
                     } label: {

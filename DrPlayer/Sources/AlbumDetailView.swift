@@ -18,12 +18,16 @@ struct AlbumDetailView: View {
     let onToggleFavorite: (Track) -> Void
     let onSelectGenre: (String) -> Void
     let onSearch: (String) -> Void
+    var onScanDR: ((Int) async -> Void)? = nil
 
     @State private var cover: NSImage?
     @State private var artworkCount = 0
     @State private var artworkPaths: [String] = []
     @State private var showArtwork = false
     @State private var selectedTrack: Track? = nil
+    @State private var showEditionComparison = false
+    @State private var mbRelease: MBRelease?
+    @State private var dgRelease: DiscogsRelease?
 
     var isThisAlbumPlaying: Bool {
         currentAlbumTitle == album.title
@@ -42,6 +46,16 @@ struct AlbumDetailView: View {
                 onEnqueue: { onEnqueueTrack(track) },
                 onPlayFile: onPlayFile,
                 onDismiss: { selectedTrack = nil }
+            )
+        } else if showEditionComparison {
+            EditionComparisonView(
+                album: album,
+                allAlbums: allAlbums,
+                onPlayFile: onPlayFile,
+                onSetPreferred: onSetPreferred,
+                preferredFiles: preferredFiles,
+                onBack: { showEditionComparison = false },
+                onScanDR: onScanDR
             )
         } else {
         ScrollView {
@@ -98,6 +112,9 @@ struct AlbumDetailView: View {
             artworkPaths = paths
             artworkCount = paths.count
         }
+        .task(id: album.id) {
+            await loadReleaseInfo()
+        }
         } // end else
     }
 
@@ -135,6 +152,14 @@ struct AlbumDetailView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
                     .help("Generate playlist based on this album")
+
+                    Button { showEditionComparison = true } label: {
+                        Label(String(localized: "Compare editions",
+                                     defaultValue: "Compare editions"),
+                              systemImage: "arrow.triangle.swap")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
                 }
                 .padding(.top, 8)
 
@@ -212,6 +237,37 @@ struct AlbumDetailView: View {
                             .foregroundColor(drColor(dr))
                         drBar(dr)
                     }
+                }
+            }
+            // Release identification: label, catalog, country
+            if let label = releaseLabel, !label.isEmpty {
+                GridRow {
+                    Text("Label")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Text(label)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if let catalog = releaseCatalog, !catalog.isEmpty {
+                GridRow {
+                    Text("Catalog")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Text(catalog)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if let country = releaseCountry, !country.isEmpty {
+                GridRow {
+                    Text("Country")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Text(country)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             if artworkCount > 0 {
@@ -434,6 +490,69 @@ struct AlbumDetailView: View {
                 .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
             }
         }
+    }
+
+    // MARK: - Release Info
+
+    private var releaseLabel: String? {
+        if !album.label.isEmpty { return album.label }
+        return mbRelease?.label ?? dgRelease?.label
+    }
+
+    private var releaseCatalog: String? {
+        mbRelease?.catalogNumber ?? dgRelease?.catalogNumber
+    }
+
+    private var releaseCountry: String? {
+        mbRelease?.country ?? dgRelease?.country
+    }
+
+    /// Clean album title for API searches
+    private func cleanTitleForSearch(_ title: String) -> String {
+        var cleaned = title
+        if let range = cleaned.range(of: #"^\d{4}\s+"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+        while let range = cleaned.range(of: #"\s*\([^)]*\)\s*$"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+        while let range = cleaned.range(of: #"\s*\[[^\]]*\]\s*$"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+        if let range = cleaned.range(of: #"\s*-\s*(remaster|deluxe|bonus).*$"#, options: [.regularExpression, .caseInsensitive]) {
+            cleaned.removeSubrange(range)
+        }
+        return cleaned.trimmingCharacters(in: .whitespaces)
+    }
+
+    private func loadReleaseInfo() async {
+        let cleanAlbum = cleanTitleForSearch(album.title)
+
+        // MusicBrainz
+        var mb: MBRelease?
+        if !album.musicbrainzAlbumId.isEmpty {
+            mb = await MusicBrainzService.fetchRelease(id: album.musicbrainzAlbumId)
+        }
+        if mb == nil {
+            mb = await MusicBrainzService.searchRelease(artist: album.artist, album: cleanAlbum)
+        }
+        if mb == nil && cleanAlbum != album.title {
+            mb = await MusicBrainzService.searchRelease(artist: album.artist, album: album.title)
+        }
+        mbRelease = mb
+
+        // Discogs
+        var dg: DiscogsRelease?
+        if let catno = mb?.catalogNumber, !catno.isEmpty {
+            dg = await DiscogsService.searchByCatalog(catno)
+        }
+        if dg == nil, let barcode = mb?.barcode, !barcode.isEmpty {
+            dg = await DiscogsService.searchByBarcode(barcode)
+        }
+        if dg == nil {
+            dg = await DiscogsService.search(artist: album.artist, album: cleanAlbum)
+        }
+        dgRelease = dg
     }
 
     // MARK: - DR helpers

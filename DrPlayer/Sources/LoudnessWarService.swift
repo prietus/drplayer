@@ -10,6 +10,10 @@ struct LoudnessWarEntry: Identifiable {
     let drMax: Int
     let codec: String   // "Lossless", "Lossy"
     let source: String  // "CD", "Vinyl", "Download", etc.
+    // Detail fields (from album/view page)
+    var label: String = ""
+    var catalogNumber: String = ""
+    var country: String = ""
 }
 
 enum LoudnessWarService {
@@ -112,6 +116,41 @@ enum LoudnessWarService {
         }
 
         return result
+    }
+
+    /// Fetch detail page for an entry to get label, catalog number, country
+    static func fetchDetail(entry: LoudnessWarEntry) async -> LoudnessWarEntry {
+        let urlStr = "https://dr.loudness-war.info/album/view/\(entry.id)"
+        guard let url = URL(string: urlStr) else { return entry }
+
+        var request = URLRequest(url: url)
+        request.setValue("DrPlayer/1.0 (music player)", forHTTPHeaderField: "User-Agent")
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse, http.statusCode == 200,
+              let html = String(data: data, encoding: .utf8) else { return entry }
+
+        var result = entry
+        result.label = extractField(html: html, field: "Label")
+        result.catalogNumber = extractField(html: html, field: "Catalog number")
+        result.country = extractField(html: html, field: "Country")
+        return result
+    }
+
+    /// Extract a field value from the detail page HTML.
+    /// Fields are in <dt>Label</dt><dd>value</dd> or <th>Label</th><td>value</td> patterns.
+    private static func extractField(html: String, field: String) -> String {
+        // Try <th>field</th> ... <td>value</td> pattern
+        let thPattern = #"<th[^>]*>\s*"# + NSRegularExpression.escapedPattern(for: field) + #"\s*</th>\s*<td[^>]*>(.*?)</td>"#
+        if let match = matches(in: html, pattern: thPattern).first, match.count > 1 {
+            return stripHTML(match[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        // Try <dt>field</dt><dd>value</dd> pattern
+        let dtPattern = #"<dt[^>]*>\s*"# + NSRegularExpression.escapedPattern(for: field) + #"\s*</dt>\s*<dd[^>]*>(.*?)</dd>"#
+        if let match = matches(in: html, pattern: dtPattern).first, match.count > 1 {
+            return stripHTML(match[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return ""
     }
 
     private static func matches(in text: String, pattern: String) -> [[String]] {
