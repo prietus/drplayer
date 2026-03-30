@@ -13,6 +13,31 @@ struct MBRelease {
     let credits: [(name: String, role: String)]
     let wikipediaSlug: String?
     let genres: [String]
+
+    /// Names with producer-related roles
+    var producers: [String] {
+        creditNames(matching: ["producer", "executive producer"])
+    }
+
+    /// Names with engineering roles
+    var engineers: [String] {
+        creditNames(matching: ["engineer", "recording", "mix", "balance"])
+    }
+
+    /// Names with mastering roles
+    var masteringEngineers: [String] {
+        creditNames(matching: ["mastering"])
+    }
+
+    private func creditNames(matching keywords: [String]) -> [String] {
+        let matched = credits.filter { credit in
+            let role = credit.role.lowercased()
+            return keywords.contains { role.contains($0) }
+        }
+        // Deduplicate names
+        var seen = Set<String>()
+        return matched.compactMap { seen.insert($0.name).inserted ? $0.name : nil }
+    }
 }
 
 struct MBArtistInfo {

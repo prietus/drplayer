@@ -332,6 +332,19 @@ struct EditionComparisonView: View {
             details.append(ReleaseDetail(label: String(localized: "Source", defaultValue: "Source"), value: dg.formats.joined(separator: ", ")))
         }
 
+        // Producer / Engineer / Mastering from MusicBrainz
+        if let mb {
+            if !mb.producers.isEmpty {
+                details.append(ReleaseDetail(label: "Producer", value: mb.producers.joined(separator: ", ")))
+            }
+            if !mb.engineers.isEmpty {
+                details.append(ReleaseDetail(label: "Engineer", value: mb.engineers.joined(separator: ", ")))
+            }
+            if !mb.masteringEngineers.isEmpty {
+                details.append(ReleaseDetail(label: "Mastering", value: mb.masteringEngineers.joined(separator: ", ")))
+            }
+        }
+
         return details
     }
 

@@ -349,6 +349,39 @@ struct AlbumDetailView: View {
                     }
                 }
             }
+            // Producer / Engineer / Mastering from MusicBrainz credits
+            if let mb = mbRelease {
+                if !mb.producers.isEmpty {
+                    GridRow {
+                        Text("Producer")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        Text(mb.producers.joined(separator: ", "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if !mb.engineers.isEmpty {
+                    GridRow {
+                        Text("Engineer")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        Text(mb.engineers.joined(separator: ", "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if !mb.masteringEngineers.isEmpty {
+                    GridRow {
+                        Text("Mastering")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        Text(mb.masteringEngineers.joined(separator: ", "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             if artworkCount > 0 {
                 GridRow {
                     Text("Images")
