@@ -576,6 +576,13 @@ struct AlbumDetailView: View {
     // MARK: - Release Info
 
     private var releaseLabel: String? {
+        // Prefer API label when matched by catalog number (more specific, distinguishes sub-labels)
+        if let mb = mbRelease, !mb.label.isEmpty, !mb.catalogNumber.isEmpty {
+            return mb.label
+        }
+        if let dg = dgRelease, !dg.label.isEmpty, !dg.catalogNumber.isEmpty {
+            return dg.label
+        }
         if !album.label.isEmpty { return album.label }
         return mbRelease?.label ?? dgRelease?.label
     }

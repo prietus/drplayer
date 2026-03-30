@@ -287,8 +287,13 @@ struct EditionComparisonView: View {
     private func buildReleaseDetails(edition: Album, mb: MBRelease?, dg: DiscogsRelease?) -> [ReleaseDetail] {
         var details: [ReleaseDetail] = []
 
-        // Label: prefer metadata, fallback to MB, then Discogs
-        let label = !edition.label.isEmpty ? edition.label : (mb?.label ?? dg?.label ?? "")
+        // Label: prefer API when matched by catalog (more specific sub-label), fallback to metadata
+        let apiLabel: String? = {
+            if let mb, !mb.label.isEmpty, !mb.catalogNumber.isEmpty { return mb.label }
+            if let dg, !dg.label.isEmpty, !dg.catalogNumber.isEmpty { return dg.label }
+            return nil
+        }()
+        let label = apiLabel ?? (!edition.label.isEmpty ? edition.label : (mb?.label ?? dg?.label ?? ""))
         if !label.isEmpty {
             details.append(ReleaseDetail(label: String(localized: "Label", defaultValue: "Label"), value: label))
         }
