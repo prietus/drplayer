@@ -118,7 +118,6 @@ struct TrackDetailView: View {
                             Text(track.album)
                                 .font(.subheadline)
                                 .foregroundStyle(.tertiary)
-                                .underline()
                         }
                         .buttonStyle(.plain)
                         .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
