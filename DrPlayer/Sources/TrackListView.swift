@@ -5,6 +5,7 @@ struct TrackListView: View {
     let allAlbums: [Album]
     let onPlay: (Track) -> Void
     let onPlayFile: (String) -> Void
+    var onSelectAlbum: ((Album) -> Void)? = nil
 
     @State private var searchText = ""
     @State private var sortKey: SortKey = .title
@@ -64,7 +65,8 @@ struct TrackListView: View {
                 onPlay: { onPlay(track) },
                 onEnqueue: { onPlayFile(track.file) },
                 onPlayFile: onPlayFile,
-                onDismiss: { selectedTrack = nil }
+                onDismiss: { selectedTrack = nil },
+                onSelectAlbum: onSelectAlbum
             )
         } else {
             trackListBody

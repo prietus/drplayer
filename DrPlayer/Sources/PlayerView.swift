@@ -211,6 +211,14 @@ struct PlayerView: View {
                                 },
                                 onPlayFile: { file in
                                     Task { await vm.enqueueAndPlay(file: file) }
+                                },
+                                onSelectAlbum: { album in
+                                    lastAlbumId = album.id
+                                    Task {
+                                        var a = album
+                                        await vm.loadFavorites(for: &a)
+                                        selectedAlbum = a
+                                    }
                                 }
                             )
                         case .composers:
