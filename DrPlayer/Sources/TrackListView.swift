@@ -9,13 +9,15 @@ struct TrackListView: View {
     @State private var searchText = ""
     @State private var sortKey: SortKey = .title
     @State private var sortAscending = true
+    @State private var selectedTrack: Track?
 
     enum SortKey: String, CaseIterable {
         case title = "Title"
         case artist = "Artist"
         case album = "Album"
-        case duration = "Duration"
+        case label = "Label"
         case composer = "Composer"
+        case duration = "Duration"
     }
 
     private var filteredAndSorted: [Track] {
@@ -28,6 +30,7 @@ struct TrackListView: View {
                 || $0.artist.lowercased().contains(q)
                 || $0.album.lowercased().contains(q)
                 || $0.composer.lowercased().contains(q)
+                || $0.label.lowercased().contains(q)
             }
         }
 
@@ -40,6 +43,8 @@ struct TrackListView: View {
                 cmp = a.artist.localizedCaseInsensitiveCompare(b.artist)
             case .album:
                 cmp = a.album.localizedCaseInsensitiveCompare(b.album)
+            case .label:
+                cmp = a.label.localizedCaseInsensitiveCompare(b.label)
             case .duration:
                 return sortAscending ? a.duration < b.duration : a.duration > b.duration
             case .composer:
@@ -52,6 +57,21 @@ struct TrackListView: View {
     }
 
     var body: some View {
+        if let track = selectedTrack {
+            TrackDetailView(
+                track: track,
+                allAlbums: allAlbums,
+                onPlay: { onPlay(track) },
+                onEnqueue: { onPlayFile(track.file) },
+                onPlayFile: onPlayFile,
+                onDismiss: { selectedTrack = nil }
+            )
+        } else {
+            trackListBody
+        }
+    }
+
+    private var trackListBody: some View {
         VStack(spacing: 0) {
             // Search + sort controls
             HStack(spacing: 12) {
@@ -99,9 +119,10 @@ struct TrackListView: View {
             HStack(spacing: 0) {
                 Text("").frame(width: 28)  // play button
                 columnHeader("Title", key: .title, width: nil, flex: true)
-                columnHeader("Artist", key: .artist, width: 150)
-                columnHeader("Album", key: .album, width: 150)
-                columnHeader("Composer", key: .composer, width: 120)
+                columnHeader("Artist", key: .artist, width: 140)
+                columnHeader("Album", key: .album, width: 140)
+                columnHeader("Label", key: .label, width: 100)
+                columnHeader("Composer", key: .composer, width: 100)
                 Text("DR")
                     .font(.caption2.bold())
                     .foregroundStyle(.tertiary)
@@ -117,6 +138,7 @@ struct TrackListView: View {
                 LazyVStack(spacing: 0) {
                     ForEach(filteredAndSorted) { track in
                         trackRow(track)
+                            .onTapGesture { selectedTrack = track }
                         Divider().padding(.leading, 36)
                     }
                 }
@@ -167,19 +189,25 @@ struct TrackListView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .frame(width: 150, alignment: .leading)
+                .frame(width: 140, alignment: .leading)
 
             Text(track.album)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
-                .frame(width: 150, alignment: .leading)
+                .frame(width: 140, alignment: .leading)
+
+            Text(track.label)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+                .frame(width: 100, alignment: .leading)
 
             Text(track.composer)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
-                .frame(width: 120, alignment: .leading)
+                .frame(width: 100, alignment: .leading)
 
             if let dr = track.dr, dr > 0 {
                 Text("DR\(dr)")

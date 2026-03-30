@@ -439,19 +439,12 @@ struct NowPlayingBar: View {
                 Spacer()
 
                 // Audio info + signal path
-                HStack(spacing: 8) {
-                    SignalPathIndicator(vm: vm)
-
+                HStack(spacing: 6) {
                     VStack(alignment: .trailing, spacing: 2) {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(vm.connected ? .green : .red)
-                                .frame(width: 6, height: 6)
-                            if !vm.audioFormat.isEmpty {
-                                Text(formatAudio(vm.audioFormat))
-                                    .font(.caption.monospaced())
-                                    .foregroundStyle(.secondary)
-                            }
+                        if !vm.audioFormat.isEmpty {
+                            Text(formatAudio(vm.audioFormat))
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
                         }
                         if !vm.bitrate.isEmpty && vm.bitrate != "0" {
                             Text("\(vm.bitrate) kbps")
@@ -464,6 +457,8 @@ struct NowPlayingBar: View {
                                 .foregroundStyle(drColor(dr))
                         }
                     }
+
+                    SignalPathIndicator(vm: vm)
                 }
             }
 
@@ -520,30 +515,35 @@ struct NowPlayingBar: View {
                 Button { Task { await vm.next() } } label: {
                     Image(systemName: "forward.fill")
                 }
+            }
+            .font(.title3)
+            .buttonStyle(.plain)
 
-                Spacer().frame(width: 8)
+            Spacer().frame(height: 2)
 
+            // Utility buttons
+            HStack(spacing: 16) {
                 Button { showSearch.toggle() } label: {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(showSearch ? .accentColor : .primary)
+                        .foregroundColor(showSearch ? .accentColor : .secondary)
                 }
                 .help("Search")
 
                 Button { showLyrics.toggle() } label: {
                     Image(systemName: "quote.bubble")
-                        .foregroundColor(showLyrics ? .accentColor : .primary)
+                        .foregroundColor(showLyrics ? .accentColor : .secondary)
                 }
                 .help("Lyrics")
 
                 Button { showQueue.toggle() } label: {
                     Image(systemName: "list.bullet")
-                        .foregroundColor(showQueue ? .accentColor : .primary)
+                        .foregroundColor(showQueue ? .accentColor : .secondary)
                 }
                 .help("Play queue (\(vm.playlist.count) tracks)")
 
                 Button { showVisualizer.toggle() } label: {
                     Image(systemName: "waveform.path")
-                        .foregroundColor(showVisualizer ? .accentColor : .primary)
+                        .foregroundColor(showVisualizer ? .accentColor : .secondary)
                 }
                 .help("Oscilloscope")
 
@@ -555,13 +555,13 @@ struct NowPlayingBar: View {
                     }
                 } label: {
                     Image(systemName: "antenna.radiowaves.left.and.right")
-                        .foregroundColor(vm.radioEnabled ? .green : .primary)
+                        .foregroundColor(vm.radioEnabled ? .green : .secondary)
                 }
                 .help(vm.radioEnabled ? "Radio active — click to disable" : "Start radio based on current track")
 
                 BackgroundTasksIndicator(vm: vm)
             }
-            .font(.title3)
+            .font(.caption)
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
