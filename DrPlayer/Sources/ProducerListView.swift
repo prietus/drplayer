@@ -369,13 +369,23 @@ private struct ProducerDetailView: View {
 
                     Divider().padding(.horizontal)
 
-                    // Albums
-                    AlbumGridView(
-                        albums: producerAlbums.map(\.album),
-                        currentAlbum: "",
-                        onSelect: onSelectAlbum,
-                        scrollToAlbumId: nil
-                    )
+                    // Albums with roles
+                    let columns = [GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 16)]
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(producerAlbums) { pa in
+                            VStack(spacing: 6) {
+                                AlbumCell(album: pa.album, isPlaying: false)
+                                    .onTapGesture { onSelectAlbum(pa.album) }
+
+                                let roles = pa.roles.map { baseRole($0).capitalized }
+                                Text(Set(roles).sorted().joined(separator: ", "))
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                    .padding()
                 }
             }
         }
