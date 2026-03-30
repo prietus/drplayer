@@ -20,6 +20,8 @@ struct AlbumDetailView: View {
     let onSearch: (String) -> Void
     var onSelectLabel: ((String) -> Void)? = nil
     var onSelectCountry: ((String) -> Void)? = nil
+    var onSelectFormat: ((String) -> Void)? = nil
+    var onSelectProducer: ((String) -> Void)? = nil
     var onScanDR: ((Int) async -> Void)? = nil
     var onUpdateDB: ((String) async -> Void)? = nil
 
@@ -280,9 +282,19 @@ struct AlbumDetailView: View {
                     Text("Format")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
-                    Text(album.format)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
+                    if let onSelectFormat {
+                        Button { onSelectFormat(album.format) } label: {
+                            Text(album.format)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+                    } else {
+                        Text(album.format)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             if let dr = album.avgDR, dr > 0 {
@@ -356,9 +368,7 @@ struct AlbumDetailView: View {
                         Text("Producer")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
-                        Text(mb.producers.joined(separator: ", "))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        creditLinks(mb.producers)
                     }
                 }
                 if !mb.engineers.isEmpty {
@@ -366,9 +376,7 @@ struct AlbumDetailView: View {
                         Text("Engineer")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
-                        Text(mb.engineers.joined(separator: ", "))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        creditLinks(mb.engineers)
                     }
                 }
                 if !mb.masteringEngineers.isEmpty {
@@ -376,9 +384,7 @@ struct AlbumDetailView: View {
                         Text("Mastering")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
-                        Text(mb.masteringEngineers.joined(separator: ", "))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        creditLinks(mb.masteringEngineers)
                     }
                 }
             }
@@ -739,6 +745,33 @@ struct AlbumDetailView: View {
     }
 
     // MARK: - DR helpers
+
+    @ViewBuilder
+    private func creditLinks(_ names: [String]) -> some View {
+        if let onSelectProducer {
+            FlowLayout(spacing: 0) {
+                ForEach(Array(names.enumerated()), id: \.offset) { i, name in
+                    Button { onSelectProducer(name) } label: {
+                        Text(name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+
+                    if i < names.count - 1 {
+                        Text(", ")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+        } else {
+            Text(names.joined(separator: ", "))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
 
     private func drColor(_ dr: Int) -> Color {
         switch dr {

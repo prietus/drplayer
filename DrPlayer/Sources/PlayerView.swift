@@ -29,12 +29,14 @@ struct PlayerView: View {
         case genre(String)
         case label(String)
         case country(String)
+        case format(String)
 
         var displayName: String {
             switch self {
             case .genre(let v): return v.uppercased()
             case .label(let v): return v
             case .country(let v): return v
+            case .format(let v): return v.uppercased()
             }
         }
 
@@ -43,6 +45,7 @@ struct PlayerView: View {
             case .genre: return "tag.fill"
             case .label: return "building.2"
             case .country: return "globe"
+            case .format: return "waveform"
             }
         }
 
@@ -58,6 +61,8 @@ struct PlayerView: View {
             case .country(let c):
                 let upper = c.uppercased()
                 return album.tracks.contains { $0.country.uppercased() == upper }
+            case .format(let f):
+                return album.format.uppercased().contains(f.uppercased())
             }
         }
     }
@@ -333,6 +338,14 @@ struct PlayerView: View {
                         onSelectCountry: { country in
                             albumFilter = .country(country)
                             selectedAlbum = nil
+                        },
+                        onSelectFormat: { format in
+                            albumFilter = .format(format)
+                            selectedAlbum = nil
+                        },
+                        onSelectProducer: { name in
+                            selectedAlbum = nil
+                            browseMode = .producers
                         },
                         onScanDR: { albumIdx in
                             await vm.scanDR14ForAlbum(albumIdx: albumIdx)
