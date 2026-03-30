@@ -121,7 +121,7 @@ struct PlayerView: View {
                                                 .font(.caption.weight(browseMode == mode ? .bold : .regular))
                                                 .padding(.horizontal, 8)
                                                 .padding(.vertical, 4)
-                                                .background(browseMode == mode ? Color.accentColor : Color.clear)
+                                                .background(browseMode == mode ? ThemeManager.shared.current.accent : Color.clear)
                                                 .foregroundStyle(browseMode == mode ? .white : .secondary)
                                                 .clipShape(RoundedRectangle(cornerRadius: 5))
                                         }
@@ -566,25 +566,25 @@ struct NowPlayingBar: View {
             HStack(spacing: 16) {
                 Button { showSearch.toggle() } label: {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(showSearch ? .accentColor : .secondary)
+                        .foregroundColor(showSearch ? ThemeManager.shared.current.accent : .secondary)
                 }
                 .help("Search")
 
                 Button { showLyrics.toggle() } label: {
                     Image(systemName: "quote.bubble")
-                        .foregroundColor(showLyrics ? .accentColor : .secondary)
+                        .foregroundColor(showLyrics ? ThemeManager.shared.current.accent : .secondary)
                 }
                 .help("Lyrics")
 
                 Button { showQueue.toggle() } label: {
                     Image(systemName: "list.bullet")
-                        .foregroundColor(showQueue ? .accentColor : .secondary)
+                        .foregroundColor(showQueue ? ThemeManager.shared.current.accent : .secondary)
                 }
                 .help("Play queue (\(vm.playlist.count) tracks)")
 
                 Button { showVisualizer.toggle() } label: {
                     Image(systemName: "waveform.path")
-                        .foregroundColor(showVisualizer ? .accentColor : .secondary)
+                        .foregroundColor(showVisualizer ? ThemeManager.shared.current.accent : .secondary)
                 }
                 .help("Oscilloscope")
 

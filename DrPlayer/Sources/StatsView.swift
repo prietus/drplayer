@@ -204,7 +204,7 @@ struct StatsView: View {
                         .font(.caption.weight(period == p ? .bold : .regular))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(period == p ? Color.cyan : Color.clear)
+                        .background(period == p ? ThemeManager.shared.current.accent : Color.clear)
                         .foregroundStyle(period == p ? .white : .secondary)
                         .clipShape(Capsule())
                 }
@@ -226,7 +226,7 @@ struct StatsView: View {
             VStack(spacing: 4) {
                 Image(systemName: "headphones")
                     .font(.system(size: 28))
-                    .foregroundStyle(.cyan)
+                    .foregroundStyle(ThemeManager.shared.current.accent)
                 Text(formatDurationLarge(time))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                 Text(period == .allTime ? "Total listening time" : "\(period.rawValue) listening time")
@@ -264,7 +264,7 @@ struct StatsView: View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.caption)
-                .foregroundStyle(.cyan)
+                .foregroundStyle(ThemeManager.shared.current.accent)
                 .frame(width: 16)
             Text(value)
                 .font(.callout.bold().monospaced())
@@ -346,7 +346,7 @@ struct StatsView: View {
     }
 
     private func genreColor(_ index: Int) -> Color {
-        let colors: [Color] = [.cyan, .purple, .blue, .indigo, .teal, .mint]
+        let colors = ThemeManager.shared.current.chartColors
         return colors[index % colors.count]
     }
 
@@ -366,7 +366,7 @@ struct StatsView: View {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(artist.name).font(.callout.weight(.medium)).lineLimit(1)
                             GeometryReader { geo in
-                                RoundedRectangle(cornerRadius: 2).fill(.purple.opacity(0.6))
+                                RoundedRectangle(cornerRadius: 2).fill(ThemeManager.shared.current.secondaryAccent.opacity(0.6))
                                     .frame(width: geo.size.width * CGFloat(artist.totalTime / maxTime))
                             }.frame(height: 4)
                         }
@@ -409,7 +409,7 @@ struct StatsView: View {
                             Text(album.title).font(.callout.weight(.medium)).lineLimit(1)
                             Text(album.artist).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                             GeometryReader { geo in
-                                RoundedRectangle(cornerRadius: 2).fill(.cyan.opacity(0.6))
+                                RoundedRectangle(cornerRadius: 2).fill(ThemeManager.shared.current.accent.opacity(0.6))
                                     .frame(width: geo.size.width * CGFloat(album.totalTime / maxTime))
                             }.frame(height: 4)
                         }
@@ -448,12 +448,12 @@ struct StatsView: View {
                     HStack(spacing: 10) {
                         Image(systemName: "building.2")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(ThemeManager.shared.current.highlight)
                             .frame(width: 24)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(label.name).font(.callout.weight(.medium)).lineLimit(1)
                             GeometryReader { geo in
-                                RoundedRectangle(cornerRadius: 2).fill(.orange.opacity(0.6))
+                                RoundedRectangle(cornerRadius: 2).fill(ThemeManager.shared.current.highlight.opacity(0.6))
                                     .frame(width: geo.size.width * CGFloat(label.totalTime / maxTime))
                             }.frame(height: 4)
                         }
@@ -494,7 +494,7 @@ struct StatsView: View {
                 ForEach(stats, id: \.day) { day in
                     VStack(spacing: 4) {
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(.cyan.opacity(0.6))
+                            .fill(ThemeManager.shared.current.accent.opacity(0.6))
                             .frame(width: 24, height: max(4, CGFloat(day.hours / maxHours) * 80))
                         Text(day.day)
                             .font(.caption2)
@@ -539,7 +539,7 @@ struct StatsView: View {
                     )
                     let intensity = maxPlays > 0 ? Double(stat.plays) / Double(maxPlays) : 0
                     context.fill(Path(roundedRect: rect, cornerRadius: 2),
-                                 with: .color(.purple.opacity(0.3 + 0.7 * intensity)))
+                                 with: .color(ThemeManager.shared.current.secondaryAccent.opacity(0.3 + 0.7 * intensity)))
                 }
                 // Hour labels
                 for h in stride(from: 0, through: 23, by: 6) {
@@ -577,8 +577,8 @@ struct StatsView: View {
                     }
                     Spacer()
                     Text("\(stat.playCount)")
-                        .font(.callout.bold().monospaced()).foregroundStyle(.cyan)
-                    RoundedRectangle(cornerRadius: 2).fill(.cyan.opacity(0.3))
+                        .font(.callout.bold().monospaced()).foregroundStyle(ThemeManager.shared.current.accent)
+                    RoundedRectangle(cornerRadius: 2).fill(ThemeManager.shared.current.accent.opacity(0.3))
                         .frame(width: CGFloat(stat.playCount) / CGFloat(maxCount) * 100, height: 16)
                 }
                 .contentShape(Rectangle())

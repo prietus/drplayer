@@ -19,6 +19,10 @@ struct SettingsView: View {
                 .tabItem {
                     Label("Audio", systemImage: "hifispeaker")
                 }
+            AppearanceTab()
+                .tabItem {
+                    Label("Appearance", systemImage: "paintbrush")
+                }
         }
         .frame(width: 560, height: 400)
     }
@@ -861,5 +865,52 @@ private struct AudioOutputsTab: View {
             try? await client.toggleOutput(id)
             await loadOutputs()
         }
+    }
+}
+
+// MARK: - Appearance Tab
+
+private struct AppearanceTab: View {
+    @State private var selectedTheme = ThemeManager.shared.current.name
+
+    var body: some View {
+        Form {
+            Section("Theme") {
+                Picker("Color theme", selection: $selectedTheme) {
+                    ForEach(AppTheme.allThemes, id: \.name) { theme in
+                        Text(theme.name).tag(theme.name)
+                    }
+                }
+                .pickerStyle(.radioGroup)
+                .onChange(of: selectedTheme) { _, name in
+                    if let theme = AppTheme.allThemes.first(where: { $0.name == name }) {
+                        ThemeManager.shared.current = theme
+                    }
+                }
+
+                // Preview
+                HStack(spacing: 12) {
+                    let theme = ThemeManager.shared.current
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(theme.accent)
+                        .frame(width: 40, height: 24)
+                        .overlay { Text("Aa").font(.caption2.bold()).foregroundStyle(.white) }
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(theme.secondaryAccent)
+                        .frame(width: 40, height: 24)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(theme.highlight)
+                        .frame(width: 40, height: 24)
+                    ForEach(0..<4) { i in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(theme.chartColors[i])
+                            .frame(width: 16, height: 24)
+                    }
+                }
+                .padding(.top, 4)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
     }
 }

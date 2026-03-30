@@ -159,7 +159,7 @@ struct ProducerListView: View {
                 .font(.caption2.bold())
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .background(roleFilter == role ? Color.orange : Color.clear)
+                .background(roleFilter == role ? ThemeManager.shared.current.highlight : Color.clear)
                 .foregroundStyle(roleFilter == role ? .white : .secondary)
                 .clipShape(Capsule())
                 .overlay(Capsule().stroke(roleFilter == role ? Color.clear : Color.secondary.opacity(0.3), lineWidth: 1))
@@ -239,7 +239,7 @@ private struct ProducerRow: View {
                         .overlay {
                             Image(systemName: "person.badge.key.fill")
                                 .font(.caption)
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(ThemeManager.shared.current.highlight)
                         }
                 }
             }
@@ -320,7 +320,7 @@ private struct ProducerDetailView: View {
                                     .overlay {
                                         Image(systemName: "person.badge.key.fill")
                                             .font(.system(size: 32))
-                                            .foregroundStyle(.orange)
+                                            .foregroundStyle(ThemeManager.shared.current.highlight)
                                     }
                             }
                         }
@@ -380,7 +380,7 @@ private struct ProducerDetailView: View {
                                 let roles = pa.roles.map { baseRole($0).capitalized }
                                 Text(Set(roles).sorted().joined(separator: ", "))
                                     .font(.caption2)
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(ThemeManager.shared.current.highlight)
                                     .lineLimit(1)
                             }
                         }
