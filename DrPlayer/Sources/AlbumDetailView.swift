@@ -270,7 +270,7 @@ struct AlbumDetailView: View {
                 }
             }
             GridRow {
-                Text("Tracks_label")
+                Text("Tracks")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                 Text("\(album.tracks.count)")

@@ -356,7 +356,7 @@ struct AlbumInfoView: View {
         // Remove format/edition suffixes embedded in title:
         // "Beat SHM-CD Legacy Collection 1980" → "Beat"
         // "Album HDCD" → "Album", "Album MQA-CD" → "Album"
-        if let range = cleaned.range(of: #"\s+(SHM-CD|SHM-SACD|HDCD|MQA-CD|XRCD|K2HD|HQCD|Blu-spec CD|UHQCD).*$"#, options: [.regularExpression, .caseInsensitive]) {
+        if let range = cleaned.range(of: #"\s+(PT-SHM|SHM-CD|SHM-SACD|HDCD|MQA-CD|XRCD|K2HD|HQCD|Blu-spec CD|UHQCD).*$"#, options: [.regularExpression, .caseInsensitive]) {
             cleaned.removeSubrange(range)
         }
         // Remove "Legacy Collection YYYY", "Anniversary Edition", etc.
@@ -467,7 +467,11 @@ struct AlbumInfoView: View {
             albumWiki = await WikipediaService.search(query: "\(cleanAlbum) (\(artist) album)")
         }
         if albumWiki == nil {
-            albumWiki = await WikipediaService.search(query: cleanAlbum)
+            let candidate = await WikipediaService.search(query: cleanAlbum)
+            // Only accept if the extract mentions the artist (avoid wrong album matches)
+            if let wiki = candidate, wiki.extract.localizedCaseInsensitiveContains(artist) {
+                albumWiki = wiki
+            }
         }
 
         // Wikipedia for artist
