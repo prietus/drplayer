@@ -60,11 +60,21 @@ struct ProducerListView: View {
             ProducerDetailView(
                 name: producer,
                 producerAlbums: producerMap[producer] ?? [],
-                onBack: { selectedProducer = nil },
+                albums: albums,
+                onBack: {
+                    selectedProducer = nil
+                },
                 onSelectAlbum: onSelectAlbum
             )
         } else {
             producerListBody
+        }
+    }
+
+    private func applyInitialProducer() {
+        if !didApplyInitial, let name = initialProducer {
+            selectedProducer = name
+            didApplyInitial = true
         }
     }
 
@@ -150,7 +160,10 @@ struct ProducerListView: View {
                 }
             }
         }
-        .task { await loadProducers() }
+        .task {
+            applyInitialProducer()
+            await loadProducers()
+        }
     }
 
     private func roleChip(_ role: String?, label: String) -> some View {
@@ -213,13 +226,7 @@ struct ProducerListView: View {
             }
         }
 
-        await MainActor.run {
-            loading = false
-            if !didApplyInitial, let name = initialProducer, producerMap[name] != nil {
-                selectedProducer = name
-                didApplyInitial = true
-            }
-        }
+        await MainActor.run { loading = false }
     }
 }
 
@@ -287,12 +294,18 @@ private struct ProducerRow: View {
 private struct ProducerDetailView: View {
     let name: String
     let producerAlbums: [ProducerListView.ProducerAlbum]
+    var albums: [Album] = []  // full library, for self-loading when navigated directly
     let onBack: () -> Void
     let onSelectAlbum: (Album) -> Void
 
     @State private var avatar: NSImage?
     @State private var wikiSummary: WikiSummary?
     @State private var loading = true
+    @State private var selfLoadedAlbums: [ProducerListView.ProducerAlbum] = []
+
+    private var displayAlbums: [ProducerListView.ProducerAlbum] {
+        producerAlbums.isEmpty ? selfLoadedAlbums : producerAlbums
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -336,11 +349,11 @@ private struct ProducerDetailView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(name)
                                 .font(.largeTitle.bold())
-                            let roles = Set(producerAlbums.flatMap(\.roles).map { baseRole($0) }).sorted()
+                            let roles = Set(displayAlbums.flatMap(\.roles).map { baseRole($0) }).sorted()
                             Text(roles.joined(separator: ", ").capitalized)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                            Text("\(producerAlbums.count) albums in library")
+                            Text("\(displayAlbums.count) albums in library")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
 
@@ -380,7 +393,7 @@ private struct ProducerDetailView: View {
                     // Albums with roles
                     let columns = [GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 16)]
                     LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(producerAlbums) { pa in
+                        ForEach(displayAlbums) { pa in
                             VStack(spacing: 6) {
                                 AlbumCell(album: pa.album, isPlaying: false)
                                     .onTapGesture { onSelectAlbum(pa.album) }
@@ -406,7 +419,40 @@ private struct ProducerDetailView: View {
 
         avatar = await avatarTask
         wikiSummary = await wikiTask
+
+        // Self-load albums if navigated directly (producerAlbums empty)
+        if producerAlbums.isEmpty && !albums.isEmpty {
+            await loadOwnAlbums()
+        }
+
         loading = false
+    }
+
+    private func loadOwnAlbums() async {
+        let productionRoles = ["producer", "executive producer", "mastering", "engineer", "recording", "mix", "balance", "remastered", "remixer"]
+        var found: [ProducerListView.ProducerAlbum] = []
+
+        for album in albums {
+            let release: MBRelease?
+            if !album.musicbrainzAlbumId.isEmpty {
+                release = await MusicBrainzService.fetchReleaseFromCache(id: album.musicbrainzAlbumId)
+            } else {
+                release = await MusicBrainzService.fetchCachedRelease(artist: album.artist, album: album.title)
+            }
+            guard let release else { continue }
+
+            let matchingCredits = release.credits.filter { credit in
+                credit.name == name && productionRoles.contains { credit.role.lowercased().contains($0) }
+            }
+            if !matchingCredits.isEmpty {
+                found.append(ProducerListView.ProducerAlbum(
+                    id: album.id, album: album,
+                    roles: matchingCredits.map(\.role)
+                ))
+            }
+        }
+
+        await MainActor.run { selfLoadedAlbums = found }
     }
 
     private func baseRole(_ role: String) -> String {
