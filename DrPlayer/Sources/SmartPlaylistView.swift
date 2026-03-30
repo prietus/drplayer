@@ -10,6 +10,7 @@ struct SmartPlaylistView: View {
     @State private var playCounts: [String: Int] = [:]
     @State private var favoriteFiles: Set<String> = []
     @State private var dataLoaded = false
+    @State private var editingName = ""
 
     private var selectedIndex: Int? {
         guard let id = selectedId else { return nil }
@@ -73,7 +74,10 @@ struct SmartPlaylistView: View {
                 }
             }
             .listStyle(.sidebar)
-            .onChange(of: selectedId) { evaluate() }
+            .onChange(of: selectedId) {
+                // Defer to avoid stealing focus from text fields
+                DispatchQueue.main.async { evaluate() }
+            }
 
             Divider()
 
@@ -97,11 +101,10 @@ struct SmartPlaylistView: View {
         VStack(alignment: .leading, spacing: 10) {
             // Name
             HStack {
-                TextField("Playlist name", text: $playlists[index].name)
+                TextField("Playlist name", text: nameBinding(for: index))
                     .textFieldStyle(.roundedBorder)
                     .font(.title3.bold())
                     .frame(maxWidth: 300)
-                    .onChange(of: playlists[index].name) { save() }
 
                 Spacer()
 
@@ -340,6 +343,17 @@ struct SmartPlaylistView: View {
     }
 
     // MARK: - Actions
+
+    private func nameBinding(for index: Int) -> Binding<String> {
+        Binding(
+            get: { playlists[index].name },
+            set: { newName in
+                playlists[index].name = newName
+                // Debounce save - don't trigger full re-evaluation
+                SmartPlaylist.saveAll(playlists)
+            }
+        )
+    }
 
     private func save() {
         SmartPlaylist.saveAll(playlists)
