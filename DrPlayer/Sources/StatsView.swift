@@ -5,17 +5,13 @@ struct StatsView: View {
     let onPlayFile: (String) -> Void
 
     @State private var playStats: [PlayerViewModel.PlayStats] = []
+    @State private var trackDurations: [String: Double] = [:]
+    @State private var trackGenres: [String: String] = [:]
     @State private var loading = true
 
     // Computed from playStats + library
     private var totalListeningTime: Double {
-        var trackDurations: [String: Double] = [:]
-        for album in vm.albums {
-            for track in album.tracks {
-                trackDurations[track.file] = track.duration
-            }
-        }
-        return playStats.reduce(0.0) { total, stat in
+        playStats.reduce(0.0) { total, stat in
             total + (trackDurations[stat.file] ?? 0) * Double(stat.playCount)
         }
     }
@@ -28,10 +24,6 @@ struct StatsView: View {
 
     private var artistStats: [ArtistStat] {
         var byArtist: [String: ArtistStat] = [:]
-        var trackDurations: [String: Double] = [:]
-        for album in vm.albums {
-            for track in album.tracks { trackDurations[track.file] = track.duration }
-        }
         for stat in playStats {
             let artist = stat.artist.isEmpty ? "Unknown" : stat.artist
             let time = (trackDurations[stat.file] ?? 0) * Double(stat.playCount)
@@ -49,10 +41,6 @@ struct StatsView: View {
 
     private var albumStats: [AlbumStat] {
         var byAlbum: [String: AlbumStat] = [:]
-        var trackDurations: [String: Double] = [:]
-        for album in vm.albums {
-            for track in album.tracks { trackDurations[track.file] = track.duration }
-        }
         for stat in playStats {
             let key = "\(stat.artist)|\(stat.album)"
             let time = (trackDurations[stat.file] ?? 0) * Double(stat.playCount)
@@ -69,15 +57,6 @@ struct StatsView: View {
 
     private var genreStats: [GenreStat] {
         var byGenre: [String: Double] = [:]
-        var trackDurations: [String: Double] = [:]
-        var trackGenres: [String: String] = [:]
-        for album in vm.albums {
-            let genre = album.genres.first ?? ""
-            for track in album.tracks {
-                trackDurations[track.file] = track.duration
-                trackGenres[track.file] = track.genre.isEmpty ? genre : track.genre
-            }
-        }
         for stat in playStats {
             let genre = trackGenres[stat.file] ?? "Unknown"
             let time = (trackDurations[stat.file] ?? 0) * Double(stat.playCount)
@@ -89,56 +68,63 @@ struct StatsView: View {
     }
 
     var body: some View {
-        if loading {
-            VStack {
-                Spacer()
-                ProgressView("Loading play history...")
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            .task { await reload() }
-        } else if playStats.isEmpty {
-            VStack(spacing: 8) {
-                Spacer()
-                Image(systemName: "chart.bar")
-                    .font(.system(size: 40))
-                    .foregroundStyle(.tertiary)
-                Text("No play data yet")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                Text("Stats will appear here as you listen to music")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                Spacer()
-            }
-            .task { await reload() }
-        } else {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Hero: total listening time
-                    heroSection
-
-                    // Cards row
-                    HStack(alignment: .top, spacing: 16) {
-                        genreCard
-                        topArtistsCard
-                        topAlbumsCard
-                    }
-
-                    // Top tracks list
-                    topTracksSection
-
-                    // Recent
-                    recentSection
+        Group {
+            if loading {
+                VStack {
+                    Spacer()
+                    ProgressView("Loading play history...")
+                        .foregroundStyle(.secondary)
+                    Spacer()
                 }
-                .padding(20)
+            } else if playStats.isEmpty {
+                VStack(spacing: 8) {
+                    Spacer()
+                    Image(systemName: "chart.bar")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.tertiary)
+                    Text("No play data yet")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                    Text("Stats will appear here as you listen to music")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+            } else {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        heroSection
+
+                        HStack(alignment: .top, spacing: 16) {
+                            genreCard
+                            topArtistsCard
+                            topAlbumsCard
+                        }
+
+                        topTracksSection
+                        recentSection
+                    }
+                    .padding(20)
+                }
             }
-            .task { await reload() }
         }
+        .task { await reload() }
     }
 
     private func reload() async {
         loading = true
+        // Cache durations and genres once
+        var durations: [String: Double] = [:]
+        var genres: [String: String] = [:]
+        for album in vm.albums {
+            let genre = album.genres.first ?? ""
+            for track in album.tracks {
+                durations[track.file] = track.duration
+                genres[track.file] = track.genre.isEmpty ? genre : track.genre
+            }
+        }
+        trackDurations = durations
+        trackGenres = genres
         playStats = await vm.loadPlayStats()
         loading = false
     }
