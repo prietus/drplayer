@@ -140,12 +140,29 @@ enum MusicBrainzService {
         return parseRelease(id: id, json: json)
     }
 
-    /// Try to find a cached release by artist+album search key. Returns nil if not cached.
+    /// Try to find a cached release by searching all known cache key patterns.
     static func fetchCachedRelease(artist: String, album: String) async -> MBRelease? {
-        let searchCacheKey = "mb_search_\(artist.lowercased())_\(album.lowercased())"
-        guard let cachedId = MetadataCache.getString(searchCacheKey),
-              cachedId != "(none)" else { return nil }
-        return await fetchReleaseFromCache(id: cachedId)
+        // Try all cache key patterns used by search methods
+        let prefixes = [
+            "mb_search_release_\(artist.lowercased())_\(album.lowercased())",
+        ]
+        for prefix in prefixes {
+            if let cachedId = MetadataCache.getString(prefix),
+               cachedId != "(none)",
+               let release = await fetchReleaseFromCache(id: cachedId) {
+                return release
+            }
+        }
+        // Try with cleaned album title (without catalog/edition suffixes)
+        let cleaned = album.replacingOccurrences(of: "\\s*\\(.*\\)\\s*$", with: "", options: .regularExpression)
+        if cleaned != album {
+            let cleanKey = "mb_search_release_\(artist.lowercased())_\(cleaned.lowercased())"
+            if let cachedId = MetadataCache.getString(cleanKey),
+               cachedId != "(none)" {
+                return await fetchReleaseFromCache(id: cachedId)
+            }
+        }
+        return nil
     }
 
     static func fetchRelease(id: String) async -> MBRelease? {
@@ -197,8 +214,9 @@ enum MusicBrainzService {
                 let type = rel["type"] as? String ?? ""
                 if let artistObj = rel["artist"] as? [String: Any] {
                     let name = artistObj["name"] as? String ?? ""
-                    let attrs = (rel["attributes"] as? [String])?.joined(separator: ", ") ?? type
-                    credits.append((name: name, role: attrs))
+                    let attrs = (rel["attributes"] as? [String])?.filter({ !$0.isEmpty }) ?? []
+                    let role = attrs.isEmpty ? type : "\(type) (\(attrs.joined(separator: ", ")))"
+                    credits.append((name: name, role: role))
                 }
             }
         }
@@ -214,9 +232,10 @@ enum MusicBrainzService {
                                 let type = rel["type"] as? String ?? ""
                                 if let artistObj = rel["artist"] as? [String: Any] {
                                     let name = artistObj["name"] as? String ?? ""
-                                    let attrs = (rel["attributes"] as? [String])?.joined(separator: ", ") ?? type
-                                    if !credits.contains(where: { $0.name == name && $0.role == attrs }) {
-                                        credits.append((name: name, role: attrs))
+                                    let attrs = (rel["attributes"] as? [String])?.filter({ !$0.isEmpty }) ?? []
+                                    let role = attrs.isEmpty ? type : "\(type) (\(attrs.joined(separator: ", ")))"
+                                    if !credits.contains(where: { $0.name == name && $0.role == role }) {
+                                        credits.append((name: name, role: role))
                                     }
                                 }
                             }

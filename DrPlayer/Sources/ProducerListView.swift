@@ -199,19 +199,26 @@ struct ProducerListView: View {
         var map: [String: [ProducerAlbum]] = [:]
         let productionRoles = ["producer", "executive producer", "mastering", "engineer", "recording", "mix", "balance", "remastered"]
 
+        var cachedCount = 0
+        var mbidCount = 0
         for album in albums {
+            if !album.musicbrainzAlbumId.isEmpty { mbidCount += 1 }
             // Try to load from MetadataCache (populated when user views album detail)
             let release: MBRelease?
             if !album.musicbrainzAlbumId.isEmpty {
                 release = await MusicBrainzService.fetchReleaseFromCache(id: album.musicbrainzAlbumId)
             } else {
-                // Try cached search results
                 release = await MusicBrainzService.fetchCachedRelease(artist: album.artist, album: album.title)
             }
+            if release != nil { cachedCount += 1 }
 
             guard let release else {
                 await MainActor.run { loadedCount += 1 }
                 continue
+            }
+
+            if !release.credits.isEmpty {
+                print("[Producers] \(album.artist) - \(album.title): \(release.credits.count) credits: \(release.credits.map { "\($0.name) (\($0.role))" }.joined(separator: ", "))")
             }
 
             for credit in release.credits {
@@ -238,6 +245,7 @@ struct ProducerListView: View {
             }
         }
 
+        print("[Producers] Scan done: \(albums.count) albums, \(mbidCount) with MBID, \(cachedCount) cached, \(map.count) producers found")
         await MainActor.run { loading = false }
     }
 }
