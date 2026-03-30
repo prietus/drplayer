@@ -100,7 +100,7 @@ struct SmartPlaylistView: View {
                 TextField("Playlist name", text: $playlists[index].name)
                     .textFieldStyle(.plain)
                     .font(.title2.bold())
-                    .onSubmit { save() }
+                    .onChange(of: playlists[index].name) { save() }
 
                 Spacer()
 
@@ -162,7 +162,7 @@ struct SmartPlaylistView: View {
                     TextField("", value: $playlists[index].limit, format: .number)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 60)
-                        .onSubmit { save(); evaluate() }
+                        .onChange(of: playlists[index].limit) { save(); evaluate() }
                     Text("tracks")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -206,14 +206,14 @@ struct SmartPlaylistView: View {
                 TextField("value", text: $playlists[playlistIndex].rules[ruleIndex].value)
                     .textFieldStyle(.roundedBorder)
                     .frame(minWidth: 80)
-                    .onSubmit { save(); evaluate() }
+                    .onChange(of: playlists[playlistIndex].rules[ruleIndex].value) { save(); evaluate() }
 
                 if playlists[playlistIndex].rules[ruleIndex].op == .between {
                     Text("–").foregroundStyle(.secondary)
                     TextField("to", text: $playlists[playlistIndex].rules[ruleIndex].value2)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 60)
-                        .onSubmit { save(); evaluate() }
+                        .onChange(of: playlists[playlistIndex].rules[ruleIndex].value2) { save(); evaluate() }
                 }
             }
 
