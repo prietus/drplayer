@@ -159,58 +159,66 @@ struct AlbumDetailView: View {
                 clickableText(album.artist, font: .title3, color: .secondary)
 
                 // Action buttons
-                HStack(spacing: 10) {
+                HStack(spacing: 6) {
                     Button(action: onPlayAlbum) {
-                        Label("Play", systemImage: "play.fill")
+                        Image(systemName: "play.fill")
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.regular)
+                    .help("Play album")
 
                     Button(action: onEnqueueAlbum) {
-                        Label("Add to queue", systemImage: "text.badge.plus")
+                        Image(systemName: "text.badge.plus")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
+                    .help("Add to queue")
 
                     Button(action: onStartRadio) {
-                        Label("Radio", systemImage: "antenna.radiowaves.left.and.right")
+                        Image(systemName: "antenna.radiowaves.left.and.right")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
                     .help("Generate playlist based on this album")
 
                     Button { showEditionComparison = true } label: {
-                        Label(String(localized: "Compare editions",
-                                     defaultValue: "Compare editions"),
-                              systemImage: "arrow.triangle.swap")
+                        Image(systemName: "arrow.triangle.swap")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
+                    .help("Compare editions")
 
-                    Divider().frame(height: 20)
+                    Menu {
+                        Button {
+                            let path = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
+                            NSWorkspace.shared.open(
+                                [URL(fileURLWithPath: path)],
+                                withApplicationAt: URL(fileURLWithPath: "/Applications/MusicBrainz Picard.app"),
+                                configuration: NSWorkspace.OpenConfiguration()
+                            )
+                        } label: {
+                            Label("Open in Picard", systemImage: "tag")
+                        }
 
-                    Button {
-                        let path = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
-                        NSWorkspace.shared.open(
-                            [URL(fileURLWithPath: path)],
-                            withApplicationAt: URL(fileURLWithPath: "/Applications/MusicBrainz Picard.app"),
-                            configuration: NSWorkspace.OpenConfiguration()
-                        )
+                        Button {
+                            Task { await onUpdateDB?(album.folder) }
+                        } label: {
+                            Label("Refresh tags", systemImage: "arrow.trianglehead.clockwise")
+                        }
+
+                        Divider()
+
+                        Button {
+                            let path = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
+                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path)
+                        } label: {
+                            Label("Reveal in Finder", systemImage: "folder")
+                        }
                     } label: {
-                        Label("Picard", systemImage: "tag")
+                        Label("More", systemImage: "ellipsis.circle")
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-                    .help("Open album folder in MusicBrainz Picard")
-
-                    Button {
-                        Task { await onUpdateDB?(album.folder) }
-                    } label: {
-                        Label("Refresh tags", systemImage: "arrow.trianglehead.clockwise")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-                    .help("Rescan album in MPD database after retagging")
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
                 }
                 .padding(.top, 8)
 
