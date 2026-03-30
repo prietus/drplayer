@@ -463,6 +463,27 @@ class PlayerViewModel {
         }
     }
 
+    // MARK: - Bulk Operations
+
+    func enqueueAndPlayAll(files: [String]) async {
+        try? await mpd.command("clear")
+        for file in files {
+            try? await mpd.command("add \"\(file)\"")
+        }
+        try? await mpd.command("play")
+        await refreshPlaylist()
+    }
+
+    func loadAllPlayCounts() async -> [String: Int] {
+        guard let counts = try? await mpd.findSticker(name: "play_count") else { return [:] }
+        return counts.compactMapValues { Int($0) }
+    }
+
+    func loadAllFavoriteFiles() async -> Set<String> {
+        guard let favs = try? await mpd.findSticker(name: "favorite") else { return [] }
+        return Set(favs.filter { $0.value == "1" }.map(\.key))
+    }
+
     // MARK: - Radio
 
     /// Start radio mode based on an album's metadata

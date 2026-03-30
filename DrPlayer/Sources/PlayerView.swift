@@ -20,6 +20,7 @@ struct PlayerView: View {
         case labels = "Labels"
         case tracks = "Tracks"
         case composers = "Composers"
+        case smart = "Smart"
         case stats = "Stats"
     }
 
@@ -227,6 +228,13 @@ struct PlayerView: View {
                                 allTracks: vm.allTracks,
                                 onPlay: { track in
                                     Task { await vm.enqueueAndPlay(file: track.file) }
+                                }
+                            )
+                        case .smart:
+                            SmartPlaylistView(
+                                vm: vm,
+                                onPlayFile: { file in
+                                    Task { await vm.enqueueAndPlay(file: file) }
                                 }
                             )
                         case .stats:
