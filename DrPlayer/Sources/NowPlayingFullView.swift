@@ -7,8 +7,10 @@ struct NowPlayingFullView: View {
     @State private var artworkPaths: [String] = []
     @State private var currentImageIndex = 0
     @State private var currentImage: NSImage?
-    @State private var showLyrics = true
+    enum FullScreenMode { case lyrics, artwork, visualizer }
+    @State private var mode: FullScreenMode = .lyrics
     @State private var imageTimer: Timer?
+    @State private var vizMode: VisualizerMode = .spectrum
 
     // Lyrics state
     @State private var syncedLines: [SyncedLine] = []
@@ -55,10 +57,13 @@ struct NowPlayingFullView: View {
 
                 Spacer(minLength: 0)
 
-                if showLyrics {
+                switch mode {
+                case .lyrics:
                     lyricsContent
-                } else {
+                case .artwork:
                     artworkGallery
+                case .visualizer:
+                    visualizerContent
                 }
 
                 Spacer(minLength: 0)
@@ -95,8 +100,8 @@ struct NowPlayingFullView: View {
             Image(nsImage: img)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .blur(radius: showLyrics ? 30 : 0)
-                .animation(.easeInOut(duration: 0.8), value: showLyrics)
+                .blur(radius: mode == .artwork ? 0 : 30)
+                .animation(.easeInOut(duration: 0.8), value: mode)
                 .animation(.easeInOut(duration: 1.0), value: currentImageIndex)
         } else {
             Color.black
@@ -111,21 +116,17 @@ struct NowPlayingFullView: View {
 
             // View toggle
             HStack(spacing: 2) {
-                Button {
-                    withAnimation { showLyrics = true }
-                } label: {
-                    Image(systemName: "text.quote")
-                        .padding(6)
-                        .background(showLyrics ? .white.opacity(0.2) : .clear)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
-                Button {
-                    withAnimation { showLyrics = false }
-                } label: {
-                    Image(systemName: "photo.on.rectangle")
-                        .padding(6)
-                        .background(!showLyrics ? .white.opacity(0.2) : .clear)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                ForEach([(FullScreenMode.lyrics, "text.quote"),
+                         (.artwork, "photo.on.rectangle"),
+                         (.visualizer, "waveform.path.ecg")], id: \.0) { (m, icon) in
+                    Button {
+                        withAnimation { mode = m }
+                    } label: {
+                        Image(systemName: icon)
+                            .padding(6)
+                            .background(mode == m ? .white.opacity(0.2) : .clear)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
                 }
             }
             .font(.caption)
@@ -257,6 +258,47 @@ struct NowPlayingFullView: View {
         }
     }
 
+    // MARK: - Visualizer
+
+    private var visualizerContent: some View {
+        VStack(spacing: 12) {
+            // Mode picker
+            HStack(spacing: 12) {
+                ForEach(VisualizerMode.allCases, id: \.self) { m in
+                    Button {
+                        withAnimation { vizMode = m }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: m.icon)
+                            Text(m.rawValue)
+                        }
+                        .font(.caption)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(vizMode == m ? .white.opacity(0.2) : .white.opacity(0.05))
+                        .clipShape(Capsule())
+                    }
+                }
+            }
+            .foregroundStyle(.white.opacity(0.7))
+            .buttonStyle(.plain)
+
+            // Visualizer
+            Group {
+                switch vizMode {
+                case .oscilloscope:
+                    OscilloscopeView(lineColor: .green, backgroundColor: .clear)
+                case .spectrum:
+                    SpectrumAnalyzerView(bandCount: 64, barColor: .cyan, backgroundColor: .clear)
+                case .circular:
+                    CircularVisualizerView(bandCount: 80, color: .purple)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.horizontal, 20)
+    }
+
     // MARK: - Bottom Bar
 
     private var bottomBar: some View {
@@ -362,7 +404,7 @@ struct NowPlayingFullView: View {
 
     private func startImageCycling() {
         imageTimer = Timer.scheduledTimer(withTimeInterval: 8, repeats: true) { _ in
-            guard artworkPaths.count > 1, !showLyrics else { return }
+            guard artworkPaths.count > 1, mode == .artwork else { return }
             nextImage()
         }
     }
