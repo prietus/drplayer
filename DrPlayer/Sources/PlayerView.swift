@@ -109,17 +109,26 @@ struct PlayerView: View {
                     VStack(spacing: 0) {
                         // Browse mode selector + genre filter
                         HStack(spacing: 12) {
-                            Picker("", selection: $browseMode) {
+                            HStack(spacing: 2) {
                                 ForEach(BrowseMode.allCases, id: \.self) { mode in
                                     if mode == .composers && vm.allComposers.isEmpty {
                                         EmptyView()
                                     } else {
-                                        Text(mode.rawValue).tag(mode)
+                                        Button {
+                                            browseMode = mode
+                                        } label: {
+                                            Text(mode.rawValue)
+                                                .font(.caption.weight(browseMode == mode ? .bold : .regular))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .background(browseMode == mode ? Color.accentColor : Color.clear)
+                                                .foregroundStyle(browseMode == mode ? .white : .secondary)
+                                                .clipShape(RoundedRectangle(cornerRadius: 5))
+                                        }
+                                        .buttonStyle(.plain)
                                     }
                                 }
                             }
-                            .pickerStyle(.segmented)
-                            .frame(maxWidth: 400)
 
                             if let filter = albumFilter, browseMode == .albums {
                                 HStack(spacing: 4) {

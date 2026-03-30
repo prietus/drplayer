@@ -192,21 +192,27 @@ struct ProducerListView: View {
 
     // MARK: - Loading
 
+    /// Reads cached MusicBrainz release data that was fetched when visiting album details.
+    /// Only albums previously viewed will have cached data.
     private func loadProducers() async {
         loading = true
         var map: [String: [ProducerAlbum]] = [:]
+        let productionRoles = ["producer", "executive producer", "mastering", "engineer", "recording", "mix", "balance", "remastered"]
 
-        // Only fetch for albums with MusicBrainz IDs
-        let albumsWithMB = albums.filter { !$0.musicbrainzAlbumId.isEmpty }
+        for album in albums {
+            // Try to load from MetadataCache (populated when user views album detail)
+            let release: MBRelease?
+            if !album.musicbrainzAlbumId.isEmpty {
+                release = await MusicBrainzService.fetchReleaseFromCache(id: album.musicbrainzAlbumId)
+            } else {
+                // Try cached search results
+                release = await MusicBrainzService.fetchCachedRelease(artist: album.artist, album: album.title)
+            }
 
-        for album in albumsWithMB {
-            guard let release = await MusicBrainzService.fetchRelease(id: album.musicbrainzAlbumId) else {
+            guard let release else {
                 await MainActor.run { loadedCount += 1 }
                 continue
             }
-
-            // Collect all production-related credits
-            let productionRoles = ["producer", "executive producer", "mastering", "engineer", "recording", "mix", "balance", "remastered"]
 
             for credit in release.credits {
                 let role = credit.role.lowercased()
@@ -216,9 +222,7 @@ struct ProducerListView: View {
                 let entry = ProducerAlbum(id: album.id, album: album, roles: [credit.role])
                 if var existing = map[credit.name] {
                     if let idx = existing.firstIndex(where: { $0.id == album.id }) {
-                        var updated = existing[idx]
-                        updated = ProducerAlbum(id: album.id, album: album, roles: existing[idx].roles + [credit.role])
-                        existing[idx] = updated
+                        existing[idx] = ProducerAlbum(id: album.id, album: album, roles: existing[idx].roles + [credit.role])
                     } else {
                         existing.append(entry)
                     }
@@ -234,8 +238,6 @@ struct ProducerListView: View {
             }
         }
 
-        await MainActor.run {
-            loading = false
-        }
+        await MainActor.run { loading = false }
     }
 }

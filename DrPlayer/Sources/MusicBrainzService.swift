@@ -132,6 +132,22 @@ enum MusicBrainzService {
         return await fetchRelease(id: releaseId)
     }
 
+    /// Read a release from cache only (no network request). Used by ProducerListView.
+    static func fetchReleaseFromCache(id: String) async -> MBRelease? {
+        let cacheKey = "mb_release_\(id)"
+        guard let cached = MetadataCache.get(cacheKey),
+              let json = try? JSONSerialization.jsonObject(with: cached) as? [String: Any] else { return nil }
+        return parseRelease(id: id, json: json)
+    }
+
+    /// Try to find a cached release by artist+album search key. Returns nil if not cached.
+    static func fetchCachedRelease(artist: String, album: String) async -> MBRelease? {
+        let searchCacheKey = "mb_search_\(artist.lowercased())_\(album.lowercased())"
+        guard let cachedId = MetadataCache.getString(searchCacheKey),
+              cachedId != "(none)" else { return nil }
+        return await fetchReleaseFromCache(id: cachedId)
+    }
+
     static func fetchRelease(id: String) async -> MBRelease? {
         let cacheKey = "mb_release_\(id)"
         if let cached = MetadataCache.get(cacheKey),
