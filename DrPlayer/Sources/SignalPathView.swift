@@ -3,6 +3,7 @@ import SwiftUI
 /// Small dot indicator that shows signal path quality. Click to expand.
 struct SignalPathIndicator: View {
     let vm: PlayerViewModel
+    var compact: Bool = false
     @State private var showPopover = false
 
     private var isBitperfect: Bool {
@@ -21,15 +22,13 @@ struct SignalPathIndicator: View {
         Button {
             showPopover.toggle()
         } label: {
-            ZStack {
-                Circle()
-                    .fill(signalColor.opacity(0.3))
-                    .frame(width: 20, height: 20)
-                Circle()
-                    .fill(signalColor)
-                    .frame(width: 8, height: 8)
-                    .shadow(color: signalColor.opacity(0.8), radius: 4)
-            }
+            Circle()
+                .fill(signalColor)
+                .frame(width: compact ? 5 : 8, height: compact ? 5 : 8)
+                .shadow(color: signalColor.opacity(0.6), radius: compact ? 2 : 4)
+                .padding(compact ? 2 : 6)
+                .background(compact ? Color.clear : signalColor.opacity(0.3))
+                .clipShape(Circle())
         }
         .buttonStyle(.plain)
         .help(vm.sampleRateMatched && isBitperfect ? "Bitperfect · Rate matched" : isBitperfect ? "Bitperfect" : "Signal path")

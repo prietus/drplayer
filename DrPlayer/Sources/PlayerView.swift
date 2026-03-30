@@ -479,27 +479,23 @@ struct NowPlayingBar: View {
 
                 Spacer()
 
-                // Audio info + signal path
-                HStack(spacing: 6) {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        if !vm.audioFormat.isEmpty {
-                            Text(formatAudio(vm.audioFormat))
-                                .font(.caption.monospaced())
-                                .foregroundStyle(.secondary)
-                        }
-                        if !vm.bitrate.isEmpty && vm.bitrate != "0" {
-                            Text("\(vm.bitrate) kbps")
-                                .font(.caption2.monospaced())
-                                .foregroundStyle(.tertiary)
-                        }
-                        if let dr = vm.currentTrackDR, dr > 0 {
-                            Text("DR\(dr)")
-                                .font(.caption2.bold().monospaced())
-                                .foregroundStyle(drColor(dr))
-                        }
+                // Audio info
+                VStack(alignment: .trailing, spacing: 2) {
+                    if !vm.audioFormat.isEmpty {
+                        Text(formatAudio(vm.audioFormat))
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
                     }
-
-                    SignalPathIndicator(vm: vm)
+                    if !vm.bitrate.isEmpty && vm.bitrate != "0" {
+                        Text("\(vm.bitrate) kbps")
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.tertiary)
+                    }
+                    if let dr = vm.currentTrackDR, dr > 0 {
+                        Text("DR\(dr)")
+                            .font(.caption2.bold().monospaced())
+                            .foregroundStyle(drColor(dr))
+                    }
                 }
             }
 
@@ -556,6 +552,8 @@ struct NowPlayingBar: View {
                 Button { Task { await vm.next() } } label: {
                     Image(systemName: "forward.fill")
                 }
+
+                SignalPathIndicator(vm: vm, compact: true)
             }
             .font(.title3)
             .buttonStyle(.plain)
