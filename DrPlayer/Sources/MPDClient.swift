@@ -130,7 +130,7 @@ extension MPDClient {
         return parsePlaylist(lines)
     }
 
-    // MARK: - Stickers (favorites)
+    // MARK: - Stickers
 
     func setStickerBool(uri: String, name: String, value: Bool) async throws {
         if value {
@@ -170,6 +170,17 @@ extension MPDClient {
             }
         }
         return result
+    }
+
+    func setSticker(uri: String, name: String, value: String) async throws {
+        try await command("sticker set song \"\(uri)\" \"\(name)\" \"\(value)\"")
+    }
+
+    func incrementSticker(uri: String, name: String) async throws -> Int {
+        let current = (try? await getSticker(uri: uri, name: name)).flatMap { Int($0) } ?? 0
+        let newVal = current + 1
+        try await setSticker(uri: uri, name: name, value: String(newVal))
+        return newVal
     }
 
     // MARK: - Audio Outputs

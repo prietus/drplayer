@@ -56,30 +56,7 @@ struct ArtistListView: View {
                         Button {
                             selectedArtist = artist
                         } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "person.fill")
-                                    .font(.title3)
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 32)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(artist.name)
-                                        .font(.callout.weight(.medium))
-                                        .foregroundStyle(.primary)
-                                    Text("\(artist.albumCount) albums · \(artist.trackCount) tracks")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Spacer()
-
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .contentShape(Rectangle())
+                            ArtistRow(artist: artist)
                         }
                         .buttonStyle(.plain)
 
@@ -87,6 +64,58 @@ struct ArtistListView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+// MARK: - Artist Row with Avatar
+
+private struct ArtistRow: View {
+    let artist: PlayerViewModel.ArtistInfo
+    @State private var avatar: NSImage?
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Avatar
+            Group {
+                if let img = avatar {
+                    Image(nsImage: img)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 36, height: 36)
+                        .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(.quaternary)
+                        .frame(width: 36, height: 36)
+                        .overlay {
+                            Image(systemName: "person.fill")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(artist.name)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.primary)
+                Text("\(artist.albumCount) albums · \(artist.trackCount) tracks")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .task {
+            avatar = await ArtistAvatarService.avatar(for: artist.name)
         }
     }
 }
@@ -522,20 +551,10 @@ private struct ArtistDetailPanel: View {
             wikiSummary = await WikipediaService.searchArtist(name: artist.name)
         }
 
-        // Load artist image with proper User-Agent
-        if let urlStr = wikiSummary?.thumbnailURL ?? lfmResult?.imageURL,
-           let url = URL(string: urlStr) {
-            artistImage = await Self.fetchImage(url: url)
-        }
+        // Load artist image (uses cache from avatar service)
+        artistImage = await ArtistAvatarService.avatar(for: artist.name)
 
         loading = false
     }
 
-    private static func fetchImage(url: URL) async -> NSImage? {
-        var request = URLRequest(url: url)
-        request.setValue("DrPlayer/1.0 (music player; contact@drplayer.app)", forHTTPHeaderField: "User-Agent")
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
-        return NSImage(data: data)
-    }
 }

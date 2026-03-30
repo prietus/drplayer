@@ -20,6 +20,7 @@ struct PlayerView: View {
         case labels = "Labels"
         case tracks = "Tracks"
         case composers = "Composers"
+        case stats = "Stats"
     }
 
     enum AlbumFilter {
@@ -218,6 +219,13 @@ struct PlayerView: View {
                                 allTracks: vm.allTracks,
                                 onPlay: { track in
                                     Task { await vm.enqueueAndPlay(file: track.file) }
+                                }
+                            )
+                        case .stats:
+                            StatsView(
+                                vm: vm,
+                                onPlayFile: { file in
+                                    Task { await vm.enqueueAndPlay(file: file) }
                                 }
                             )
                         }

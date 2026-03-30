@@ -65,6 +65,10 @@ class PlayerViewModel {
     private var lastSampleRate: Double = 0
     private var isSwitchingRate = false
 
+    // Play count tracking
+    private var lastCountedFile = ""
+    private var playMarked = false
+
     /// The album containing the currently playing track
     var currentPlayingAlbum: Album? {
         // Match by file path (most precise)
@@ -186,6 +190,17 @@ class PlayerViewModel {
                 self.error = nil
                 if !pl.isEmpty {
                     self.playlist = Self.parseTracks(pl)
+                }
+
+                // Play count: mark as played when >50% listened
+                if !currentFile.isEmpty && currentFile != self.lastCountedFile {
+                    self.playMarked = false
+                    self.lastCountedFile = currentFile
+                }
+                if !self.playMarked && self.duration > 0 && self.elapsed > self.duration * 0.5 && self.state == "play" {
+                    self.playMarked = true
+                    let fileToCount = currentFile
+                    Task { await self.recordPlay(file: fileToCount) }
                 }
 
                 // Trigger waveform generation if song changed
@@ -813,6 +828,54 @@ class PlayerViewModel {
                 album.tracks[i].isFavorite = true
             }
         }
+    }
+
+    // MARK: - Play Count Tracking
+
+    private func recordPlay(file: String) async {
+        let timestamp = String(Int(Date().timeIntervalSince1970))
+        try? await mpd.incrementSticker(uri: file, name: "play_count")
+        try? await mpd.setSticker(uri: file, name: "last_played", value: timestamp)
+        print("[PlayCount] Recorded play for: \(file)")
+    }
+
+    struct PlayStats {
+        let file: String
+        let title: String
+        let artist: String
+        let album: String
+        let playCount: Int
+        let lastPlayed: Date?
+    }
+
+    func loadPlayStats() async -> [PlayStats] {
+        guard let counts = try? await mpd.findSticker(name: "play_count") else { return [] }
+        let lastPlayedMap = (try? await mpd.findSticker(name: "last_played")) ?? [:]
+
+        // Build a file→track lookup from loaded albums
+        var trackLookup: [String: Track] = [:]
+        let albums = await MainActor.run { self.albums }
+        for album in albums {
+            for track in album.tracks {
+                trackLookup[track.file] = track
+            }
+        }
+
+        var stats: [PlayStats] = []
+        for (file, countStr) in counts {
+            guard let count = Int(countStr), count > 0 else { continue }
+            let track = trackLookup[file]
+            let lastPlayed = lastPlayedMap[file].flatMap { Int($0) }.map { Date(timeIntervalSince1970: Double($0)) }
+            stats.append(PlayStats(
+                file: file,
+                title: track?.title ?? (file as NSString).lastPathComponent,
+                artist: track?.artist ?? "",
+                album: track?.album ?? "",
+                playCount: count,
+                lastPlayed: lastPlayed
+            ))
+        }
+        return stats.sorted { $0.playCount > $1.playCount }
     }
 
     // MARK: - Aggregated browsing data
