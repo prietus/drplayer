@@ -13,6 +13,7 @@ struct PlayerView: View {
     @State private var showVisualizer = false
     @State private var showSetup = !AppSettings.shared.hasCompletedSetup
     @State private var browseMode: BrowseMode = .albums
+    @State private var navigateToProducer: String? = nil
 
     enum BrowseMode: String, CaseIterable {
         case albums = "Albums"
@@ -258,8 +259,10 @@ struct PlayerView: View {
                                 },
                                 onPlayFile: { file in
                                     Task { await vm.enqueueAndPlay(file: file) }
-                                }
+                                },
+                                initialProducer: navigateToProducer
                             )
+                            .onDisappear { navigateToProducer = nil }
                         case .smart:
                             SmartPlaylistView(
                                 vm: vm,
@@ -345,6 +348,7 @@ struct PlayerView: View {
                         },
                         onSelectProducer: { name in
                             selectedAlbum = nil
+                            navigateToProducer = name
                             browseMode = .producers
                         },
                         onScanDR: { albumIdx in

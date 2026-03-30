@@ -4,12 +4,14 @@ struct ProducerListView: View {
     let albums: [Album]
     let onSelectAlbum: (Album) -> Void
     let onPlayFile: (String) -> Void
+    var initialProducer: String? = nil
 
     @State private var searchText = ""
     @State private var producerMap: [String: [ProducerAlbum]] = [:]
     @State private var loading = true
     @State private var loadedCount = 0
     @State private var selectedProducer: String?
+    @State private var didApplyInitial = false
     @State private var roleFilter: String?
 
     struct ProducerAlbum: Identifiable {
@@ -211,7 +213,13 @@ struct ProducerListView: View {
             }
         }
 
-        await MainActor.run { loading = false }
+        await MainActor.run {
+            loading = false
+            if !didApplyInitial, let name = initialProducer, producerMap[name] != nil {
+                selectedProducer = name
+                didApplyInitial = true
+            }
+        }
     }
 }
 
