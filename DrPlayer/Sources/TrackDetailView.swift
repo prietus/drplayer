@@ -110,9 +110,23 @@ struct TrackDetailView: View {
                     .font(.title3)
                     .foregroundStyle(.secondary)
                 if !track.album.isEmpty {
-                    Text(track.album)
-                        .font(.subheadline)
-                        .foregroundStyle(.tertiary)
+                    if let onSelectAlbum,
+                       let album = allAlbums.first(where: { $0.title == track.album && $0.artist == track.albumArtist }) {
+                        Button {
+                            onSelectAlbum(album)
+                        } label: {
+                            Text(track.album)
+                                .font(.subheadline)
+                                .foregroundStyle(.tertiary)
+                                .underline()
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+                    } else {
+                        Text(track.album)
+                            .font(.subheadline)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
 
                 HStack(spacing: 10) {
