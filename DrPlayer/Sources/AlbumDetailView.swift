@@ -31,6 +31,7 @@ struct AlbumDetailView: View {
     @State private var showArtwork = false
     @State private var selectedTrack: Track? = nil
     @State private var showEditionComparison = false
+    @State private var showCoverZoom = false
     @State private var mbRelease: MBRelease?
     @State private var dgRelease: DiscogsRelease?
 
@@ -234,7 +235,7 @@ struct AlbumDetailView: View {
             AlbumInfoView(artist: album.artist, albumTitle: album.title, musicbrainzAlbumId: album.musicbrainzAlbumId)
                 .frame(maxWidth: .infinity)
 
-            // Cover art (right)
+            // Cover art (right) — click to enlarge
             if let cover {
                 Image(nsImage: cover)
                     .resizable()
@@ -242,6 +243,15 @@ struct AlbumDetailView: View {
                     .frame(maxWidth: 240, maxHeight: 240)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .shadow(radius: 8)
+                    .onTapGesture { showCoverZoom = true }
+                    .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+                    .popover(isPresented: $showCoverZoom) {
+                        Image(nsImage: cover)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: 600, maxHeight: 600)
+                            .padding(8)
+                    }
             } else {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(.quaternary)
