@@ -229,8 +229,12 @@ class PlayerViewModel {
                 await refreshOutputs()
             }
 
-            // Radio: auto-continue when queue ends
-            if radioEnabled && mpdState == "stop" && !playlist.isEmpty {
+            // Auto-continue: when queue ends, start radio from last context
+            if mpdState == "stop" && !playlist.isEmpty {
+                if !radioEnabled {
+                    radioContext = RadioEngine.contextFromPlaylist(playlist)
+                    radioEnabled = true
+                }
                 await continueRadio()
             }
 
