@@ -98,8 +98,9 @@ struct SmartPlaylistView: View {
             // Name
             HStack {
                 TextField("Playlist name", text: $playlists[index].name)
-                    .textFieldStyle(.plain)
-                    .font(.title2.bold())
+                    .textFieldStyle(.roundedBorder)
+                    .font(.title3.bold())
+                    .frame(maxWidth: 300)
                     .onChange(of: playlists[index].name) { save() }
 
                 Spacer()
