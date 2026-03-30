@@ -229,6 +229,20 @@ class PlayerViewModel {
         }
     }
 
+    func updateDB(path: String) async {
+        try? await mpd.command("update \"\(path)\"")
+        try? await Task.sleep(for: .seconds(2))
+        // Re-fetch updated tracks for this folder
+        do {
+            let allTracks = try await mpd.listAllInfo()
+            let grouped = Self.groupIntoAlbums(allTracks)
+            await MainActor.run {
+                self.albums = grouped
+                self.buildVersionIndex()
+            }
+        } catch {}
+    }
+
     func loadLibrary() async {
         try? await mpd.command("update")
         try? await Task.sleep(for: .seconds(2))

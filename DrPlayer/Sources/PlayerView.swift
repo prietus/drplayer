@@ -287,6 +287,9 @@ struct PlayerView: View {
                         },
                         onScanDR: { albumIdx in
                             await vm.scanDR14ForAlbum(albumIdx: albumIdx)
+                        },
+                        onUpdateDB: { path in
+                            await vm.updateDB(path: path)
                         }
                     )
                     .id(album.id)

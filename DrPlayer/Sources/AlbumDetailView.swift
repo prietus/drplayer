@@ -21,6 +21,7 @@ struct AlbumDetailView: View {
     var onSelectLabel: ((String) -> Void)? = nil
     var onSelectCountry: ((String) -> Void)? = nil
     var onScanDR: ((Int) async -> Void)? = nil
+    var onUpdateDB: ((String) async -> Void)? = nil
 
     @State private var cover: NSImage?
     @State private var artworkCount = 0
@@ -185,6 +186,31 @@ struct AlbumDetailView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
+
+                    Divider().frame(height: 20)
+
+                    Button {
+                        let path = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
+                        NSWorkspace.shared.open(
+                            [URL(fileURLWithPath: path)],
+                            withApplicationAt: URL(fileURLWithPath: "/Applications/MusicBrainz Picard.app"),
+                            configuration: NSWorkspace.OpenConfiguration()
+                        )
+                    } label: {
+                        Label("Picard", systemImage: "tag")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .help("Open album folder in MusicBrainz Picard")
+
+                    Button {
+                        Task { await onUpdateDB?(album.folder) }
+                    } label: {
+                        Label("Refresh tags", systemImage: "arrow.trianglehead.clockwise")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .help("Rescan album in MPD database after retagging")
                 }
                 .padding(.top, 8)
 
