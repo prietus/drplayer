@@ -861,7 +861,8 @@ class PlayerViewModel {
         let timestamp = String(Int(Date().timeIntervalSince1970))
         try? await mpd.incrementSticker(uri: file, name: "play_count")
         try? await mpd.setSticker(uri: file, name: "last_played", value: timestamp)
-        print("[PlayCount] Recorded play for: \(file)")
+        // Append to local history log
+        PlayHistory.append(file: file, title: currentTitle, artist: currentArtist, album: currentAlbum, duration: duration)
     }
 
     struct PlayStats {
