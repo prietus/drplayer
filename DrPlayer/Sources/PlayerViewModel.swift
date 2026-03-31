@@ -68,6 +68,7 @@ class PlayerViewModel {
     // Play count tracking
     private var lastCountedFile = ""
     private var playMarked = false
+    private var userStopped = false
 
     /// The album containing the currently playing track
     var currentPlayingAlbum: Album? {
@@ -229,13 +230,16 @@ class PlayerViewModel {
                 await refreshOutputs()
             }
 
-            // Auto-continue: when queue ends, start radio from last context
-            if mpdState == "stop" && !playlist.isEmpty {
+            // Auto-continue: when queue ends (not user-stopped), start radio
+            if mpdState == "stop" && !playlist.isEmpty && !userStopped {
                 if !radioEnabled {
                     radioContext = RadioEngine.contextFromPlaylist(playlist)
                     radioEnabled = true
                 }
                 await continueRadio()
+            }
+            if mpdState == "play" {
+                userStopped = false
             }
 
             // Update system Now Playing info
@@ -337,6 +341,9 @@ class PlayerViewModel {
     }
 
     func stopPlayback() async {
+        userStopped = true
+        radioEnabled = false
+        radioContext = nil
         try? await mpd.command("stop")
         await refresh()
     }
