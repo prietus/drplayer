@@ -324,7 +324,11 @@ class PlayerViewModel {
     func togglePlayPause() async {
         if isPlaying {
             try? await mpd.command("pause 1")
+        } else if state == "stop" && !playlist.isEmpty {
+            userStopped = false
+            try? await mpd.command("play")
         } else {
+            userStopped = false
             try? await mpd.command("pause 0")
         }
         await refresh()
