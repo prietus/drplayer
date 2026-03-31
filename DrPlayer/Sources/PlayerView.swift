@@ -357,6 +357,12 @@ struct PlayerView: View {
                         },
                         onUpdateDB: { path in
                             await vm.updateDB(path: path)
+                            // Refresh selectedAlbum with updated data
+                            if let updated = vm.albums.first(where: { $0.folder == album.folder }) {
+                                var a = updated
+                                await vm.loadFavorites(for: &a)
+                                selectedAlbum = a
+                            }
                         }
                     )
                     .id(album.id)

@@ -205,7 +205,14 @@ struct AlbumDetailView: View {
                         }
 
                         Button {
-                            Task { await onUpdateDB?(album.folder) }
+                            Task {
+                                // Clear cached API data so it re-fetches with new tags
+                                mbRelease = nil
+                                dgRelease = nil
+                                await onUpdateDB?(album.folder)
+                                // Reload release info with updated metadata
+                                await loadReleaseInfo()
+                            }
                         } label: {
                             Label("Refresh tags", systemImage: "arrow.trianglehead.clockwise")
                         }
