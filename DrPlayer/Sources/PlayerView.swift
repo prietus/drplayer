@@ -290,6 +290,7 @@ struct PlayerView: View {
                         allAlbums: vm.albums,
                         currentPos: vm.currentPos,
                         currentAlbumTitle: vm.currentAlbum,
+                        currentFile: vm.currentFile,
                         onPlayAlbum: {
                             Task { await vm.playAlbum(album) }
                         },

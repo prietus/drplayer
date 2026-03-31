@@ -5,6 +5,7 @@ struct AlbumDetailView: View {
     let allAlbums: [Album]
     let currentPos: Int?
     let currentAlbumTitle: String
+    var currentFile: String = ""
     let onPlayAlbum: () -> Void
     let onEnqueueAlbum: () -> Void
     let onStartRadio: () -> Void
@@ -816,7 +817,7 @@ struct AlbumDetailView: View {
                     track: track,
                     index: idx,
                     albumArtist: album.artist,
-                    isCurrentTrack: isThisAlbumPlaying && currentPos == idx,
+                    isCurrentTrack: track.file == currentFile,
                     versionCount: versionCountFor(track),
                     allAlbums: allAlbums,
                     onTap: { selectedTrack = track },
