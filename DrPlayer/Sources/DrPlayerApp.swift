@@ -11,10 +11,33 @@ struct DrPlayerApp: App {
                 .frame(minWidth: 600, minHeight: 500)
         }
         .defaultSize(width: 900, height: 700)
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About DrPlayer") {
+                    NSApp.orderFrontStandardAboutPanel(options: aboutOptions)
+                }
+            }
+        }
 
         Settings {
             SettingsView()
         }
+    }
+
+    private var aboutOptions: [NSApplication.AboutPanelOptionKey: Any] {
+        [
+            .applicationName: "DrPlayer",
+            .applicationVersion: "1.4.0",
+            .version: "1",
+            .credits: NSAttributedString(
+                string: "A music player for people who care about editions.\n\nBitperfect MPD playback with collector-grade metadata.\nBrowse by label, producer, engineer, edition and format.\n\nBuilt with SwiftUI, MPD, MusicBrainz, Discogs, Last.fm and Wikipedia.\n\nLicensed under GPLv3\nhttps://github.com/prietus/drplayer",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 11),
+                    .foregroundColor: NSColor.secondaryLabelColor
+                ]
+            ),
+            .applicationIcon: NSImage(named: NSImage.applicationIconName) ?? NSImage()
+        ]
     }
 }
 
