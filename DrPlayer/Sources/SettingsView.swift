@@ -54,11 +54,16 @@ private struct GeneralTab: View {
         case failure(String)
     }
 
+    private var isRemote: Bool {
+        let h = mpdHost.lowercased()
+        return !h.isEmpty && h != "localhost" && h != "127.0.0.1" && h != "::1"
+    }
+
     var body: some View {
         Form {
             Section("Music library") {
                 HStack {
-                    TextField("music_directory", text: $musicPath)
+                    TextField("Local music path", text: $musicPath)
                         .textFieldStyle(.roundedBorder)
                     Button("Choose...") {
                         chooseFolder()
@@ -67,7 +72,11 @@ private struct GeneralTab: View {
                 .onChange(of: musicPath) {
                     AppSettings.shared.musicLibraryPath = musicPath
                 }
-                if let conf = detectedConf {
+                if isRemote {
+                    Text("Local path to the same music library that MPD uses on the remote server. Mount it via NFS or SMB for cover art, DR analysis and waveforms.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if let conf = detectedConf {
                     Text("Auto-detected from \(conf)")
                         .font(.caption)
                         .foregroundStyle(.green)
@@ -111,6 +120,16 @@ private struct GeneralTab: View {
                                 .font(.caption)
                                 .foregroundColor(.red)
                         }
+                    }
+                }
+
+                if isRemote {
+                    HStack(spacing: 6) {
+                        Image(systemName: "info.circle")
+                            .foregroundStyle(.blue)
+                        Text("Remote MPD: playback and queue control work over the network. For cover art, DR analysis and waveforms, mount the music library locally (NFS/SMB) and set the path above.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
