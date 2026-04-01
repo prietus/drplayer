@@ -51,11 +51,12 @@ class AppSettings {
         self.musicLibraryPath = detected.musicDir
             ?? defaults.string(forKey: "musicLibraryPath")
             ?? NSString(string: "~/.mpd/music").expandingTildeInPath as String
-        self.mpdHost = detected.host
-            ?? defaults.string(forKey: "mpdHost")
+        // User-set host/port (from Settings) takes priority over mpd.conf
+        self.mpdHost = defaults.string(forKey: "mpdHost")
+            ?? detected.host
             ?? "localhost"
-        self.mpdPort = detected.port
-            ?? { let p = defaults.integer(forKey: "mpdPort"); return p > 0 ? p : nil }()
+        self.mpdPort = { let p = defaults.integer(forKey: "mpdPort"); return p > 0 ? p : nil }()
+            ?? detected.port
             ?? 6600
         self.hasCompletedSetup = defaults.bool(forKey: "hasCompletedSetup")
         self.lastfmApiKey = defaults.string(forKey: "lastfmApiKey") ?? ""
