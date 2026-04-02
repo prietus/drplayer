@@ -40,9 +40,14 @@ struct AlbumDetailView: View {
         currentAlbumTitle == album.title
     }
 
+    /// Live album from ViewModel (updates reactively when DR is analyzed)
+    private var liveAlbum: Album {
+        allAlbums.first(where: { $0.id == album.id }) ?? album
+    }
+
     /// Live tracks from ViewModel (updates reactively when DR is analyzed)
     private var liveTracks: [Track] {
-        allAlbums.first(where: { $0.id == album.id })?.tracks ?? album.tracks
+        liveAlbum.tracks
     }
 
     var body: some View {
@@ -217,6 +222,15 @@ struct AlbumDetailView: View {
                             Label("Refresh tags", systemImage: "arrow.trianglehead.clockwise")
                         }
 
+                        Button {
+                            Task {
+                                CoverArtService.clearCache(artist: album.artist, album: album.title)
+                                cover = await album.coverImageAsync()
+                            }
+                        } label: {
+                            Label("Retry cover art", systemImage: "photo")
+                        }
+
                         Divider()
 
                         Button {
@@ -265,9 +279,22 @@ struct AlbumDetailView: View {
                     .fill(.quaternary)
                     .frame(width: 200, height: 200)
                     .overlay {
-                        Image(systemName: "music.note")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.tertiary)
+                        VStack(spacing: 8) {
+                            Image(systemName: "music.note")
+                                .font(.system(size: 40))
+                                .foregroundStyle(.tertiary)
+                            Button {
+                                Task {
+                                    CoverArtService.clearCache(artist: album.artist, album: album.title)
+                                    cover = await album.coverImageAsync()
+                                }
+                            } label: {
+                                Label("Retry", systemImage: "arrow.trianglehead.clockwise")
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
                     }
             }
         }
@@ -315,7 +342,7 @@ struct AlbumDetailView: View {
                     }
                 }
             }
-            if let dr = album.avgDR, dr > 0 {
+            if let dr = liveAlbum.avgDR, dr > 0 {
                 GridRow {
                     Text("Dynamic Range")
                         .font(.caption)

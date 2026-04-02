@@ -152,6 +152,15 @@ enum CoverArtService {
         FileManager.default.createFile(atPath: path, contents: nil)
     }
 
+    /// Remove cached cover and not-found marker so next fetch retries from APIs
+    static func clearCache(artist: String, album: String) {
+        let key = cacheKey(artist: artist, album: album)
+        let imgPath = "\(cacheDir)/\(key).jpg"
+        let nfPath = "\(cacheDir)/\(key).notfound"
+        try? FileManager.default.removeItem(atPath: imgPath)
+        try? FileManager.default.removeItem(atPath: nfPath)
+    }
+
     // MARK: - Helpers
 
     private static func cleanAlbumTitle(_ title: String) -> String {

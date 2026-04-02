@@ -88,5 +88,10 @@ struct AlbumCell: View {
             let img = await a.coverImageAsync()
             cover = img
         }
+        .onAppear {
+            if cover == nil, let cached = CoverCache.shared.get(album.folder) {
+                cover = cached
+            }
+        }
     }
 }

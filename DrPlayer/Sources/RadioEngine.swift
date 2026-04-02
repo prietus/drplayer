@@ -78,13 +78,14 @@ enum RadioEngine {
         excludeFiles: Set<String> = [],
         preferredFiles: Set<String> = []
     ) -> [Track] {
-        var scored: [(track: Track, score: Int, artist: String)] = []
+        var scored: [(track: Track, score: Int, artist: String, album: String)] = []
         let seedArtist = context.artist.lowercased()
 
         for album in allAlbums {
             let albumGenres = Set(album.genres.map { $0.lowercased() })
             let albumDecade = decadeFrom(date: album.date)
             let trackArtist = album.artist.lowercased()
+            let albumKey = "\(trackArtist)//\(album.title.lowercased())"
 
             for track in album.tracks {
                 guard !excludeFiles.contains(track.file) else { continue }
@@ -125,7 +126,7 @@ enum RadioEngine {
                 }
 
                 if score > 0 {
-                    scored.append((track: track, score: score, artist: trackArtist))
+                    scored.append((track: track, score: score, artist: trackArtist, album: albumKey))
                 }
             }
         }
@@ -133,9 +134,11 @@ enum RadioEngine {
         // Sort by score descending
         scored.sort { $0.score > $1.score }
 
-        // Diversity pass: limit max tracks per artist
-        let maxPerArtist = max(3, count / 6)
+        // Diversity pass: limit tracks per artist and per album
+        let maxPerArtist = max(3, count / 5)
+        let maxPerAlbum = 2
         var artistCounts: [String: Int] = [:]
+        var albumCounts: [String: Int] = [:]
         var result: [Track] = []
 
         // Shuffle within score tiers for variety
@@ -148,17 +151,20 @@ enum RadioEngine {
         }
 
         for item in bucketed {
-            let count = artistCounts[item.artist, default: 0]
-            if count >= maxPerArtist { continue }
+            if artistCounts[item.artist, default: 0] >= maxPerArtist { continue }
+            if albumCounts[item.album, default: 0] >= maxPerAlbum { continue }
             artistCounts[item.artist, default: 0] += 1
+            albumCounts[item.album, default: 0] += 1
             result.append(item.track)
             if result.count >= count { break }
         }
 
-        // If we didn't get enough (restrictive genres), fill with remaining
+        // If we didn't get enough (restrictive genres), relax album limit
         if result.count < count {
             for item in bucketed {
                 guard !result.contains(where: { $0.file == item.track.file }) else { continue }
+                if artistCounts[item.artist, default: 0] >= maxPerArtist { continue }
+                artistCounts[item.artist, default: 0] += 1
                 result.append(item.track)
                 if result.count >= count { break }
             }

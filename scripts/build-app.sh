@@ -47,6 +47,8 @@ cat > "$APP_DIR/Contents/Info.plist" << PLIST
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.music</string>
     <key>NSAppTransportSecurity</key>
@@ -59,12 +61,21 @@ cat > "$APP_DIR/Contents/Info.plist" << PLIST
 PLIST
 
 # Copy icon if exists
-if [ -f "$PROJECT_DIR/dist/DrPlayer.app/Contents/Resources/AppIcon.icns" ]; then
-    cp "$PROJECT_DIR/dist/DrPlayer.app/Contents/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/"
+if [ -f "$PROJECT_DIR/DrPlayer/Sources/Resources/AppIcon.icns" ]; then
+    cp "$PROJECT_DIR/DrPlayer/Sources/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/"
+elif [ -f "$PROJECT_DIR/dist/AppIcon.icns" ]; then
+    cp "$PROJECT_DIR/dist/AppIcon.icns" "$APP_DIR/Contents/Resources/"
 fi
 
-# Ad-hoc code sign (avoids "damaged app" on quarantined downloads)
-codesign --deep --force --sign - "$APP_DIR"
+# Code sign with Developer ID (or ad-hoc if not available)
+SIGN_IDENTITY="Developer ID Application: carlos prieto ortiz (LFTD9T269J)"
+if security find-identity -v -p codesigning | grep -q "$SIGN_IDENTITY"; then
+    codesign --deep --force --sign "$SIGN_IDENTITY" --options runtime "$APP_DIR"
+    echo "Signed with Developer ID"
+else
+    codesign --deep --force --sign - "$APP_DIR"
+    echo "Ad-hoc signed (Developer ID not found)"
+fi
 
 # Create DMG
 DMG_PATH="$DIST_DIR/DrPlayer-$VERSION.dmg"
