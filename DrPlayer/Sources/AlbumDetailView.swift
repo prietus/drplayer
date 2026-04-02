@@ -773,15 +773,16 @@ struct AlbumDetailView: View {
         mbRelease = mb
 
         // Discogs: catalog from title → MB catalog → barcode → search
+        let mbCountry = mb?.country
         var dg: DiscogsRelease?
         if let catno = catalogFromTitle {
-            dg = await DiscogsService.searchByCatalog(catno)
+            dg = await DiscogsService.searchByCatalog(catno, country: mbCountry)
         }
         if dg == nil, let catno = mb?.catalogNumber, !catno.isEmpty {
-            dg = await DiscogsService.searchByCatalog(catno)
+            dg = await DiscogsService.searchByCatalog(catno, country: mbCountry)
         }
         if dg == nil, let barcode = mb?.barcode, !barcode.isEmpty {
-            dg = await DiscogsService.searchByBarcode(barcode)
+            dg = await DiscogsService.searchByBarcode(barcode, country: mbCountry)
         }
         if dg == nil {
             dg = await DiscogsService.search(artist: album.artist, album: cleanAlbum)

@@ -26,15 +26,16 @@ enum DiscogsService {
     private static var isConfigured: Bool { !key.isEmpty && !secret.isEmpty }
 
     /// Search by catalog number (most precise for pressing identification)
-    static func searchByCatalog(_ catno: String) async -> DiscogsRelease? {
+    static func searchByCatalog(_ catno: String, country: String? = nil) async -> DiscogsRelease? {
         guard isConfigured else { return nil }
-        let cacheKey = "discogs_catno_\(catno.lowercased())"
+        let suffix = country.map { "_\($0.lowercased())" } ?? ""
+        let cacheKey = "discogs_catno_\(catno.lowercased())\(suffix)"
         if let cachedId = MetadataCache.getString(cacheKey) {
             return cachedId == "(none)" ? nil : await fetchRelease(id: Int(cachedId) ?? 0)
         }
         let encoded = catno.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlStr = "\(baseURL)/database/search?catno=\(encoded)&key=\(key)&secret=\(secret)"
-        guard let results = await searchRequest(urlStr: urlStr), let firstId = results.first else {
+        guard let results = await searchRequest(urlStr: urlStr, preferredCountry: country), let firstId = results.first else {
             MetadataCache.setString(cacheKey, value: "(none)")
             return nil
         }
@@ -43,14 +44,15 @@ enum DiscogsService {
     }
 
     /// Search by barcode
-    static func searchByBarcode(_ barcode: String) async -> DiscogsRelease? {
+    static func searchByBarcode(_ barcode: String, country: String? = nil) async -> DiscogsRelease? {
         guard isConfigured else { return nil }
-        let cacheKey = "discogs_barcode_\(barcode)"
+        let suffix = country.map { "_\($0.lowercased())" } ?? ""
+        let cacheKey = "discogs_barcode_\(barcode)\(suffix)"
         if let cachedId = MetadataCache.getString(cacheKey) {
             return cachedId == "(none)" ? nil : await fetchRelease(id: Int(cachedId) ?? 0)
         }
         let urlStr = "\(baseURL)/database/search?barcode=\(barcode)&key=\(key)&secret=\(secret)"
-        guard let results = await searchRequest(urlStr: urlStr), let firstId = results.first else {
+        guard let results = await searchRequest(urlStr: urlStr, preferredCountry: country), let firstId = results.first else {
             MetadataCache.setString(cacheKey, value: "(none)")
             return nil
         }
@@ -168,13 +170,38 @@ enum DiscogsService {
 
     // MARK: - Helpers
 
-    private static func searchRequest(urlStr: String) async -> [Int]? {
+    /// Search with optional country hint to rank results.
+    /// Prefers official releases and matching country over random first result.
+    private static func searchRequest(urlStr: String, preferredCountry: String? = nil) async -> [Int]? {
         guard let url = URL(string: urlStr) else { return nil }
         guard let data = await fetch(url) else { return nil }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let results = json["results"] as? [[String: Any]] else { return nil }
 
-        return results.compactMap { $0["id"] as? Int }
+        // Rank results: prefer official releases and matching country
+        let ranked = results.compactMap { result -> (id: Int, score: Int)? in
+            guard let id = result["id"] as? Int else { return nil }
+            var score = 0
+
+            // Penalize unofficial/bootleg releases
+            let formats = (result["format"] as? [String]) ?? []
+            let formatStr = formats.joined(separator: " ").lowercased()
+            if formatStr.contains("unofficial") || formatStr.contains("bootleg") {
+                score -= 20
+            }
+
+            // Country match bonus
+            if let pc = preferredCountry?.lowercased(),
+               let country = (result["country"] as? String)?.lowercased(),
+               country == pc {
+                score += 10
+            }
+
+            return (id: id, score: score)
+        }
+
+        let sorted = ranked.sorted { $0.score > $1.score }
+        return sorted.isEmpty ? nil : sorted.map { $0.id }
     }
 
     private static func fetch(_ url: URL) async -> Data? {

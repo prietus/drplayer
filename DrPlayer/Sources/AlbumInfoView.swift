@@ -483,14 +483,16 @@ struct AlbumInfoView: View {
         }
 
         // Discogs — prefer catalog from title, then MB catalog, then barcode, then search
+        // Pass MusicBrainz country to prefer matching pressing over bootlegs
+        let mbCountry = rel?.country
         if let catno = catalogFromTitle {
-            discogs = await DiscogsService.searchByCatalog(catno)
+            discogs = await DiscogsService.searchByCatalog(catno, country: mbCountry)
         }
         if discogs == nil, let catno = rel?.catalogNumber, !catno.isEmpty {
-            discogs = await DiscogsService.searchByCatalog(catno)
+            discogs = await DiscogsService.searchByCatalog(catno, country: mbCountry)
         }
         if discogs == nil, let barcode = rel?.barcode, !barcode.isEmpty {
-            discogs = await DiscogsService.searchByBarcode(barcode)
+            discogs = await DiscogsService.searchByBarcode(barcode, country: mbCountry)
         }
         if discogs == nil {
             discogs = await DiscogsService.search(artist: artist, album: cleanAlbum)
