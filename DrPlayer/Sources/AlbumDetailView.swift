@@ -254,7 +254,7 @@ struct AlbumDetailView: View {
             .frame(minWidth: 200)
 
             // Center: MusicBrainz + Wikipedia info
-            AlbumInfoView(artist: album.artist, albumTitle: album.title, musicbrainzAlbumId: album.musicbrainzAlbumId)
+            AlbumInfoView(artist: album.artist, albumTitle: album.title, musicbrainzAlbumId: album.musicbrainzAlbumId, fileLabel: album.label)
                 .frame(maxWidth: .infinity)
 
             // Cover art (right) — click to enlarge
@@ -660,23 +660,34 @@ struct AlbumDetailView: View {
     // MARK: - Release Info
 
     private var releaseLabel: String? {
-        // Prefer API label when matched by catalog number (more specific, distinguishes sub-labels)
+        // Prefer file tag — it reflects the actual pressing the user owns
+        if !album.label.isEmpty { return album.label }
+        // Fall back to API sources matched by catalog number
         if let mb = mbRelease, !mb.label.isEmpty, !mb.catalogNumber.isEmpty {
             return mb.label
         }
         if let dg = dgRelease, !dg.label.isEmpty, !dg.catalogNumber.isEmpty {
             return dg.label
         }
-        if !album.label.isEmpty { return album.label }
         return mbRelease?.label ?? dgRelease?.label
     }
 
+    /// Whether MusicBrainz found the exact pressing (matching file label tag)
+    private var mbMatchesEdition: Bool {
+        guard !album.label.isEmpty, let mb = mbRelease else { return true }
+        if mb.label.isEmpty { return true }
+        return mb.label.localizedCaseInsensitiveContains(album.label)
+            || album.label.localizedCaseInsensitiveContains(mb.label)
+    }
+
     private var releaseCatalog: String? {
-        mbRelease?.catalogNumber ?? dgRelease?.catalogNumber
+        let mb = mbMatchesEdition ? mbRelease?.catalogNumber : nil
+        return mb ?? dgRelease?.catalogNumber
     }
 
     private var releaseCountry: String? {
-        mbRelease?.country ?? dgRelease?.country
+        let mb = mbMatchesEdition ? mbRelease?.country : nil
+        return mb ?? dgRelease?.country
     }
 
     /// Clean album title for API searches
@@ -753,16 +764,24 @@ struct AlbumDetailView: View {
         let catalogFromTitle = extractCatalog(album.title)
         let hints = detectHints()
 
-        // MusicBrainz: catalog → MB ID → format/country-specific → generic
+        // MusicBrainz: use file label to find the correct pressing
+        let tagLabel = album.label
         var mb: MBRelease?
         if !album.musicbrainzAlbumId.isEmpty {
             mb = await MusicBrainzService.fetchRelease(id: album.musicbrainzAlbumId)
+        }
+        // Try catalog + label first (e.g. "8397" + "Analogue Productions")
+        if mb == nil, let catno = catalogFromTitle, !tagLabel.isEmpty {
+            mb = await MusicBrainzService.searchByCatalog(artist: album.artist, catno: catno, label: tagLabel)
         }
         if mb == nil, let catno = catalogFromTitle {
             mb = await MusicBrainzService.searchByCatalog(artist: album.artist, catno: catno)
         }
         if mb == nil, hints.format != nil || hints.country != nil {
-            mb = await MusicBrainzService.searchRelease(artist: album.artist, album: cleanAlbum, format: hints.format, country: hints.country)
+            mb = await MusicBrainzService.searchRelease(artist: album.artist, album: cleanAlbum, format: hints.format, country: hints.country, label: tagLabel.isEmpty ? nil : tagLabel)
+        }
+        if mb == nil, !tagLabel.isEmpty {
+            mb = await MusicBrainzService.searchRelease(artist: album.artist, album: cleanAlbum, label: tagLabel)
         }
         if mb == nil {
             mb = await MusicBrainzService.searchRelease(artist: album.artist, album: cleanAlbum)
@@ -772,14 +791,15 @@ struct AlbumDetailView: View {
         }
         mbRelease = mb
 
-        // Discogs: catalog from title → MB catalog → barcode → search
+        // Discogs: use file label + MB country to find the correct pressing
         let mbCountry = mb?.country
+        let dgLabel = tagLabel.isEmpty ? nil : tagLabel
         var dg: DiscogsRelease?
         if let catno = catalogFromTitle {
-            dg = await DiscogsService.searchByCatalog(catno, country: mbCountry)
+            dg = await DiscogsService.searchByCatalog(catno, country: mbCountry, label: dgLabel)
         }
         if dg == nil, let catno = mb?.catalogNumber, !catno.isEmpty {
-            dg = await DiscogsService.searchByCatalog(catno, country: mbCountry)
+            dg = await DiscogsService.searchByCatalog(catno, country: mbCountry, label: dgLabel)
         }
         if dg == nil, let barcode = mb?.barcode, !barcode.isEmpty {
             dg = await DiscogsService.searchByBarcode(barcode, country: mbCountry)
@@ -788,6 +808,14 @@ struct AlbumDetailView: View {
             dg = await DiscogsService.search(artist: album.artist, album: cleanAlbum)
         }
         dgRelease = dg
+
+        // If Discogs found a more specific catalog number, retry MusicBrainz with it
+        if let dg, !dg.catalogNumber.isEmpty,
+           dg.catalogNumber != mb?.catalogNumber {
+            if let better = await MusicBrainzService.searchByCatalog(artist: album.artist, catno: dg.catalogNumber) {
+                mbRelease = better
+            }
+        }
     }
 
     // MARK: - DR helpers

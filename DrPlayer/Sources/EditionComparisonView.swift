@@ -651,13 +651,20 @@ struct EditionComparisonView: View {
             let cleanAlbum = cleanTitle(edition.title)
             let catalogFromTitle = extractCatalog(edition.title)
 
-            // MusicBrainz: catalog → ID → title
+            // MusicBrainz: use file label to find the correct pressing
+            let tagLabel = edition.label
             var mb: MBRelease?
             if !edition.musicbrainzAlbumId.isEmpty {
                 mb = await MusicBrainzService.fetchRelease(id: edition.musicbrainzAlbumId)
             }
+            if mb == nil, let catno = catalogFromTitle, !tagLabel.isEmpty {
+                mb = await MusicBrainzService.searchByCatalog(artist: edition.artist, catno: catno, label: tagLabel)
+            }
             if mb == nil, let catno = catalogFromTitle {
                 mb = await MusicBrainzService.searchByCatalog(artist: edition.artist, catno: catno)
+            }
+            if mb == nil, !tagLabel.isEmpty {
+                mb = await MusicBrainzService.searchRelease(artist: edition.artist, album: cleanAlbum, label: tagLabel)
             }
             if mb == nil {
                 mb = await MusicBrainzService.searchRelease(artist: edition.artist, album: cleanAlbum)
@@ -666,14 +673,15 @@ struct EditionComparisonView: View {
                 releaseInfo[edition.id] = mb
             }
 
-            // Discogs: catalog from title → MB catalog → barcode → search
+            // Discogs: use file label + MB country to find the correct pressing
             let mbCountry = mb?.country
+            let dgLabel = tagLabel.isEmpty ? nil : tagLabel
             var dg: DiscogsRelease?
             if let catno = catalogFromTitle {
-                dg = await DiscogsService.searchByCatalog(catno, country: mbCountry)
+                dg = await DiscogsService.searchByCatalog(catno, country: mbCountry, label: dgLabel)
             }
             if dg == nil, let catno = mb?.catalogNumber, !catno.isEmpty {
-                dg = await DiscogsService.searchByCatalog(catno, country: mbCountry)
+                dg = await DiscogsService.searchByCatalog(catno, country: mbCountry, label: dgLabel)
             }
             if dg == nil, let barcode = mb?.barcode, !barcode.isEmpty {
                 dg = await DiscogsService.searchByBarcode(barcode, country: mbCountry)
@@ -683,6 +691,12 @@ struct EditionComparisonView: View {
             }
             if let dg {
                 discogsInfo[edition.id] = dg
+                // If Discogs found a more specific catalog, retry MusicBrainz
+                if !dg.catalogNumber.isEmpty, dg.catalogNumber != mb?.catalogNumber {
+                    if let better = await MusicBrainzService.searchByCatalog(artist: edition.artist, catno: dg.catalogNumber) {
+                        releaseInfo[edition.id] = better
+                    }
+                }
             }
         }
     }

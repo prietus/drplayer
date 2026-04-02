@@ -58,15 +58,20 @@ enum MusicBrainzService {
     // MARK: - Release search
 
     /// Search by catalog number — most precise for pressing identification
-    static func searchByCatalog(artist: String, catno: String) async -> MBRelease? {
-        let searchCacheKey = "mb_search_catno_\(artist.lowercased())_\(catno.lowercased())"
+    /// If `label` is provided, prefer releases matching that label.
+    static func searchByCatalog(artist: String, catno: String, label: String? = nil) async -> MBRelease? {
+        let labelSuffix = label.map { "_lbl_\($0.lowercased())" } ?? ""
+        let searchCacheKey = "mb_search_catno_\(artist.lowercased())_\(catno.lowercased())\(labelSuffix)"
         if let cachedId = MetadataCache.getString(searchCacheKey) {
             return cachedId == "(none)" ? nil : await fetchRelease(id: cachedId)
         }
 
-        let query = "catno:\(catno) AND artist:\(artist)"
-            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlStr = "\(baseURL)/release/?query=\(query)&fmt=json&limit=3"
+        var query = "catno:\(catno) AND artist:\(artist)"
+        if let label, !label.isEmpty {
+            query += " AND label:\(label)"
+        }
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlStr = "\(baseURL)/release/?query=\(encoded)&fmt=json&limit=5"
         guard let url = URL(string: urlStr) else { return nil }
 
         guard let data = await fetch(url) else { return nil }
@@ -82,17 +87,20 @@ enum MusicBrainzService {
         return await fetchRelease(id: releaseId)
     }
 
-    /// Search by artist + album title, optionally preferring a format and/or country
-    static func searchRelease(artist: String, album: String, format: String? = nil, country: String? = nil) async -> MBRelease? {
-        let hintSuffix = [format.map { "fmt_\($0)" }, country.map { "cc_\($0)" }]
+    /// Search by artist + album title, optionally preferring a format, country, and/or label
+    static func searchRelease(artist: String, album: String, format: String? = nil, country: String? = nil, label: String? = nil) async -> MBRelease? {
+        let hintSuffix = [format.map { "fmt_\($0)" }, country.map { "cc_\($0)" }, label.map { "lbl_\($0)" }]
             .compactMap { $0 }.joined(separator: "_").lowercased()
         let searchCacheKey = "mb_search_release_\(artist.lowercased())_\(album.lowercased())" + (hintSuffix.isEmpty ? "" : "_\(hintSuffix)")
         if let cachedId = MetadataCache.getString(searchCacheKey) {
             return cachedId == "(none)" ? nil : await fetchRelease(id: cachedId)
         }
 
-        let query = "release:\(album) AND artist:\(artist)"
-            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        var queryParts = "release:\(album) AND artist:\(artist)"
+        if let label, !label.isEmpty {
+            queryParts += " AND label:\(label)"
+        }
+        let query = queryParts.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let hasHints = format != nil || country != nil
         let limit = hasHints ? 25 : 5
         let urlStr = "\(baseURL)/release/?query=\(query)&fmt=json&limit=\(limit)"

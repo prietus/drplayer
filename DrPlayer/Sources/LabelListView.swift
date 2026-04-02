@@ -99,6 +99,8 @@ private struct LabelDetailPanel: View {
     let onSelectAlbum: (Album) -> Void
     let onPlayFile: (String) -> Void
 
+    @State private var labelWiki: WikiSummary?
+
     private var allGenres: [String] {
         let genres = label.albums.flatMap(\.genres)
         var seen = Set<String>()
@@ -182,10 +184,41 @@ private struct LabelDetailPanel: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.top, 2)
                         }
+
+                        // Wikipedia summary
+                        if let wiki = labelWiki {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(wiki.extract)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(6)
+                                if !wiki.pageURL.isEmpty {
+                                    Button {
+                                        if let url = URL(string: wiki.pageURL) {
+                                            NSWorkspace.shared.open(url)
+                                        }
+                                    } label: {
+                                        Text("Read more on Wikipedia")
+                                            .font(.caption2)
+                                            .foregroundStyle(.blue)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.top, 6)
+                        }
                     }
                     Spacer()
                 }
                 .padding()
+                .task {
+                    // Search Wikipedia for the label (try as record label)
+                    if let wiki = await WikipediaService.search(query: "\(label.name) record label") {
+                        labelWiki = wiki
+                    } else {
+                        labelWiki = await WikipediaService.search(query: label.name)
+                    }
+                }
 
                 // Genre tags
                 if !allGenres.isEmpty {

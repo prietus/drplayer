@@ -26,15 +26,18 @@ enum DiscogsService {
     private static var isConfigured: Bool { !key.isEmpty && !secret.isEmpty }
 
     /// Search by catalog number (most precise for pressing identification)
-    static func searchByCatalog(_ catno: String, country: String? = nil) async -> DiscogsRelease? {
+    static func searchByCatalog(_ catno: String, country: String? = nil, label: String? = nil) async -> DiscogsRelease? {
         guard isConfigured else { return nil }
-        let suffix = country.map { "_\($0.lowercased())" } ?? ""
+        let suffix = (country.map { "_\($0.lowercased())" } ?? "") + (label.map { "_lbl_\($0.lowercased())" } ?? "")
         let cacheKey = "discogs_catno_\(catno.lowercased())\(suffix)"
         if let cachedId = MetadataCache.getString(cacheKey) {
             return cachedId == "(none)" ? nil : await fetchRelease(id: Int(cachedId) ?? 0)
         }
         let encoded = catno.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlStr = "\(baseURL)/database/search?catno=\(encoded)&key=\(key)&secret=\(secret)"
+        var urlStr = "\(baseURL)/database/search?catno=\(encoded)&key=\(key)&secret=\(secret)"
+        if let label, !label.isEmpty, let encodedLabel = label.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            urlStr += "&label=\(encodedLabel)"
+        }
         guard let results = await searchRequest(urlStr: urlStr, preferredCountry: country), let firstId = results.first else {
             MetadataCache.setString(cacheKey, value: "(none)")
             return nil
