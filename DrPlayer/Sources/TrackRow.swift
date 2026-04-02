@@ -9,7 +9,7 @@ struct TrackRow: View {
     let allAlbums: [Album] // only used when popover opens
     let onTap: () -> Void
     let onPlay: () -> Void
-    let onToggleFavorite: () -> Void
+    let onSetRating: (Int) -> Void
     let onPlayFile: (String) -> Void
     let onSetPreferred: ((String) -> Void)?
     let preferredFiles: Set<String>  // files marked as preferred
@@ -45,7 +45,7 @@ struct TrackRow: View {
                 // DR badge
                 drBadge
                 // Favorite
-                favoriteButton
+                ratingView
                 // Duration
                 durationLabel
             }
@@ -382,13 +382,17 @@ struct TrackRow: View {
         }
     }
 
-    private var favoriteButton: some View {
-        Button(action: onToggleFavorite) {
-            Image(systemName: track.isFavorite ? "heart.fill" : "heart")
-                .font(.caption)
-                .foregroundColor(track.isFavorite ? .red : .gray)
+    private var ratingView: some View {
+        HStack(spacing: 1) {
+            ForEach(1...5, id: \.self) { star in
+                Image(systemName: star <= track.rating ? "star.fill" : "star")
+                    .font(.system(size: 9))
+                    .foregroundColor(star <= track.rating ? .orange : .gray.opacity(0.4))
+                    .onTapGesture {
+                        onSetRating(star == track.rating ? 0 : star)
+                    }
+            }
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder

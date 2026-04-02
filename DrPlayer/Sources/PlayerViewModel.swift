@@ -21,7 +21,7 @@ struct Track: Identifiable {
     let musicbrainzTrackId: String
     let musicbrainzAlbumId: String
     let country: String
-    var isFavorite: Bool = false
+    var rating: Int = 0  // 0 = unrated, 1-5 stars
     var dr: Int? = nil
 }
 
@@ -210,6 +210,9 @@ class PlayerViewModel {
                     self.waveformPeaks = []
                     self.generateWaveform(for: currentFile)
                 }
+
+                // Update audio sample provider for visualizers (file-based fallback)
+                AudioSampleProvider.shared.update(file: currentFile, elapsed: self.elapsed, playing: self.state == "play")
             }
             // Sample rate matching: disable output → set DAC rate → re-enable
             let mpdState = status["state"] ?? "stop"
@@ -533,7 +536,7 @@ class PlayerViewModel {
     private func generateRadioQueue() async {
         guard let context = radioContext else { return }
         let currentFiles = Set(playlist.map(\.file))
-        let tracks = RadioEngine.generate(from: context, allAlbums: albums, count: 20, excludeFiles: currentFiles, preferredFiles: preferredFiles)
+        let tracks = RadioEngine.generate(from: context, allAlbums: albums, count: 20, excludeFiles: currentFiles)
 
         for track in tracks {
             try? await mpd.command("add \"\(track.file)\"")
@@ -843,25 +846,24 @@ class PlayerViewModel {
         }
     }
 
-    // MARK: - Favorites
+    // MARK: - Ratings
 
-    func toggleFavorite(track: Track) async {
-        let newVal = !track.isFavorite
-        try? await mpd.setStickerBool(uri: track.file, name: "favorite", value: newVal)
-        // Update local state
+    func setRating(track: Track, rating: Int) async {
+        let clamped = max(0, min(5, rating))
+        try? await mpd.setSticker(uri: track.file, name: "rating", value: String(clamped))
         await MainActor.run {
             if let albumIdx = albums.firstIndex(where: { $0.tracks.contains(where: { $0.file == track.file }) }),
                let trackIdx = albums[albumIdx].tracks.firstIndex(where: { $0.file == track.file }) {
-                albums[albumIdx].tracks[trackIdx].isFavorite = newVal
+                albums[albumIdx].tracks[trackIdx].rating = clamped
             }
         }
     }
 
-    func loadFavorites(for album: inout Album) async {
+    func loadRatings(for album: inout Album) async {
         for i in album.tracks.indices {
             let uri = album.tracks[i].file
-            if let val = try? await mpd.getSticker(uri: uri, name: "favorite"), val == "1" {
-                album.tracks[i].isFavorite = true
+            if let val = try? await mpd.getSticker(uri: uri, name: "rating"), let r = Int(val) {
+                album.tracks[i].rating = r
             }
         }
     }

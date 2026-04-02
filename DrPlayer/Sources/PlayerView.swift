@@ -82,7 +82,7 @@ struct PlayerView: View {
                 if let album = vm.currentPlayingAlbum {
                     Task {
                         var a = album
-                        await vm.loadFavorites(for: &a)
+                        await vm.loadRatings(for: &a)
                         selectedAlbum = a
                     }
                 }
@@ -173,7 +173,7 @@ struct PlayerView: View {
                                     lastAlbumId = album.id
                                     Task {
                                         var a = album
-                                        await vm.loadFavorites(for: &a)
+                                        await vm.loadRatings(for: &a)
                                         selectedAlbum = a
                                     }
                                 },
@@ -189,7 +189,7 @@ struct PlayerView: View {
                                         lastAlbumId = first.id
                                         Task {
                                             var a = first
-                                            await vm.loadFavorites(for: &a)
+                                            await vm.loadRatings(for: &a)
                                             selectedAlbum = a
                                         }
                                     }
@@ -210,7 +210,7 @@ struct PlayerView: View {
                                         lastAlbumId = first.id
                                         Task {
                                             var a = first
-                                            await vm.loadFavorites(for: &a)
+                                            await vm.loadRatings(for: &a)
                                             selectedAlbum = a
                                         }
                                     }
@@ -233,7 +233,7 @@ struct PlayerView: View {
                                     lastAlbumId = album.id
                                     Task {
                                         var a = album
-                                        await vm.loadFavorites(for: &a)
+                                        await vm.loadRatings(for: &a)
                                         selectedAlbum = a
                                     }
                                 }
@@ -253,7 +253,7 @@ struct PlayerView: View {
                                     lastAlbumId = album.id
                                     Task {
                                         var a = album
-                                        await vm.loadFavorites(for: &a)
+                                        await vm.loadRatings(for: &a)
                                         selectedAlbum = a
                                     }
                                 },
@@ -324,8 +324,8 @@ struct PlayerView: View {
                         },
                         preferredFiles: vm.preferredFiles,
                         onBack: { selectedAlbum = nil },
-                        onToggleFavorite: { track in
-                            Task { await vm.toggleFavorite(track: track) }
+                        onSetRating: { track, rating in
+                            Task { await vm.setRating(track: track, rating: rating) }
                         },
                         onSelectGenre: { genre in
                             albumFilter = .genre(genre)
@@ -360,7 +360,7 @@ struct PlayerView: View {
                             // Refresh selectedAlbum with updated data
                             if let updated = vm.albums.first(where: { $0.folder == album.folder }) {
                                 var a = updated
-                                await vm.loadFavorites(for: &a)
+                                await vm.loadRatings(for: &a)
                                 selectedAlbum = a
                             }
                         }
@@ -378,7 +378,7 @@ struct PlayerView: View {
                         onSelectAlbum: { album in
                             Task {
                                 var a = album
-                                await vm.loadFavorites(for: &a)
+                                await vm.loadRatings(for: &a)
                                 selectedAlbum = a
                                 showSearch = false
                             }

@@ -8,7 +8,7 @@ struct SmartPlaylistView: View {
     @State private var selectedId: UUID?
     @State private var results: [Track] = []
     @State private var playCounts: [String: Int] = [:]
-    @State private var favoriteFiles: Set<String> = []
+    // favoriteFiles removed — ratings are on Track.rating now
     @State private var dataLoaded = false
     @State private var renamingId: UUID?
     @State private var renamingText = ""
@@ -367,8 +367,7 @@ struct SmartPlaylistView: View {
         }
         results = playlists[idx].evaluate(
             albums: vm.albums,
-            playCounts: playCounts,
-            favoriteFiles: favoriteFiles
+            playCounts: playCounts
         )
     }
 
@@ -381,7 +380,6 @@ struct SmartPlaylistView: View {
 
     private func loadStickers() async {
         playCounts = await vm.loadAllPlayCounts()
-        favoriteFiles = await vm.loadAllFavoriteFiles()
         dataLoaded = true
     }
 

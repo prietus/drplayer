@@ -16,7 +16,7 @@ struct AlbumDetailView: View {
     let onSetPreferred: ((String) -> Void)?
     let preferredFiles: Set<String>
     let onBack: () -> Void
-    let onToggleFavorite: (Track) -> Void
+    let onSetRating: (Track, Int) -> Void
     let onSelectGenre: (String) -> Void
     let onSearch: (String) -> Void
     var onSelectLabel: ((String) -> Void)? = nil
@@ -856,10 +856,10 @@ struct AlbumDetailView: View {
                     allAlbums: allAlbums,
                     onTap: { selectedTrack = track },
                     onPlay: { onPlayTrack(idx) },
-                    onToggleFavorite: {
-                        onToggleFavorite(track)
+                    onSetRating: { rating in
+                        onSetRating(track, rating)
                         if let i = album.tracks.firstIndex(where: { $0.id == track.id }) {
-                            album.tracks[i].isFavorite.toggle()
+                            album.tracks[i].rating = rating
                         }
                     },
                     onPlayFile: onPlayFile,

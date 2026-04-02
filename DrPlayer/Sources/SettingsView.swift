@@ -34,6 +34,7 @@ private struct GeneralTab: View {
     @State private var musicPath = AppSettings.shared.musicLibraryPath
     @State private var mpdHost = AppSettings.shared.mpdHost
     @State private var mpdPort = String(AppSettings.shared.mpdPort)
+    @State private var mpdPassword = AppSettings.shared.mpdPassword
     @State private var lastfmKey = AppSettings.shared.lastfmApiKey
     @State private var discogsKey = AppSettings.shared.discogsKey
     @State private var discogsSecret = AppSettings.shared.discogsSecret
@@ -99,6 +100,11 @@ private struct GeneralTab: View {
                         if let port = Int(mpdPort), port > 0, port <= 65535 {
                             AppSettings.shared.mpdPort = port
                         }
+                    }
+                SecureField("Password (optional)", text: $mpdPassword)
+                    .textFieldStyle(.roundedBorder)
+                    .onChange(of: mpdPassword) {
+                        AppSettings.shared.mpdPassword = mpdPassword
                     }
 
                 HStack {

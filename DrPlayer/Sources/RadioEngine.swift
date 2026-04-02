@@ -75,8 +75,7 @@ enum RadioEngine {
         from context: SeedContext,
         allAlbums: [Album],
         count: Int = 30,
-        excludeFiles: Set<String> = [],
-        preferredFiles: Set<String> = []
+        excludeFiles: Set<String> = []
     ) -> [Track] {
         var scored: [(track: Track, score: Int, artist: String, album: String)] = []
         let seedArtist = context.artist.lowercased()
@@ -114,9 +113,9 @@ enum RadioEngine {
                     score += 8
                 }
 
-                // Preferred version bonus
-                if preferredFiles.contains(track.file) {
-                    score += 15
+                // Rating bonus: 1-5 stars → 3-15 points
+                if track.rating > 0 {
+                    score += track.rating * 3
                 }
 
                 // Same artist: small bonus but NOT dominant

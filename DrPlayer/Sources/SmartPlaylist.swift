@@ -10,18 +10,18 @@ enum SmartField: String, Codable, CaseIterable {
     case year = "Year"
     case dr = "DR"
     case playCount = "Play Count"
-    case favorite = "Favorite"
+    case rating = "Rating"
     case composer = "Composer"
     case country = "Country"
 
     var isNumeric: Bool {
         switch self {
-        case .year, .dr, .playCount: return true
+        case .year, .dr, .playCount, .rating: return true
         default: return false
         }
     }
 
-    var isBoolean: Bool { self == .favorite }
+    var isBoolean: Bool { false }
     var isString: Bool { !isNumeric && !isBoolean }
 }
 
@@ -101,8 +101,7 @@ extension SmartPlaylist {
 extension SmartPlaylist {
     func evaluate(
         albums: [Album],
-        playCounts: [String: Int] = [:],
-        favoriteFiles: Set<String> = []
+        playCounts: [String: Int] = [:]
     ) -> [Track] {
         var allTracks: [(Track, Album)] = []
         for album in albums {
@@ -113,7 +112,7 @@ extension SmartPlaylist {
 
         let matched = allTracks.filter { track, album in
             let results = rules.map { rule in
-                evaluateRule(rule, track: track, album: album, playCounts: playCounts, favoriteFiles: favoriteFiles)
+                evaluateRule(rule, track: track, album: album, playCounts: playCounts)
             }
             switch match {
             case .all: return results.allSatisfy { $0 }
@@ -132,8 +131,7 @@ extension SmartPlaylist {
         _ rule: SmartRule,
         track: Track,
         album: Album,
-        playCounts: [String: Int],
-        favoriteFiles: Set<String>
+        playCounts: [String: Int]
     ) -> Bool {
         switch rule.field {
         case .genre:
@@ -159,9 +157,8 @@ extension SmartPlaylist {
             return matchNumeric(rule, value: track.dr ?? 0)
         case .playCount:
             return matchNumeric(rule, value: playCounts[track.file] ?? 0)
-        case .favorite:
-            let isFav = track.isFavorite || favoriteFiles.contains(track.file)
-            return rule.op == .isTrue ? isFav : !isFav
+        case .rating:
+            return matchNumeric(rule, value: track.rating)
         case .composer:
             return matchString(rule, values: [track.composer])
         case .country:

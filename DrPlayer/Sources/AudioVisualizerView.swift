@@ -193,9 +193,9 @@ struct OscilloscopeView: View {
             context.stroke(centerLine, with: .color(lineColor.opacity(0.1)), lineWidth: 0.5)
         }
         .onAppear {
-            FIFOReader.shared.start()
+            AudioSampleProvider.shared.start(file: "")
             timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { _ in
-                samples = FIFOReader.shared.getSamples()
+                samples = AudioSampleProvider.shared.getSamples()
             }
         }
         .onDisappear {
@@ -356,9 +356,9 @@ struct SpectrumAnalyzerView: View {
         .onAppear {
             smoothBands = [Float](repeating: 0, count: bandCount)
             peakBands = [Float](repeating: 0, count: bandCount)
-            FIFOReader.shared.start()
+            AudioSampleProvider.shared.start(file: "")
             timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { _ in
-                let bands = SpectrumComputer.compute(from: FIFOReader.shared.getAccumulatedSamples(), bandCount: bandCount)
+                let bands = SpectrumComputer.compute(from: AudioSampleProvider.shared.getAccumulatedSamples(), bandCount: bandCount)
                 for i in 0..<min(bands.count, smoothBands.count) {
                     // Fast attack, moderate decay — very reactive
                     if bands[i] > smoothBands[i] {
@@ -473,9 +473,9 @@ struct CircularVisualizerView: View {
         }
         .onAppear {
             smoothBands = [Float](repeating: 0, count: bandCount)
-            FIFOReader.shared.start()
+            AudioSampleProvider.shared.start(file: "")
             timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { _ in
-                let bands = SpectrumComputer.compute(from: FIFOReader.shared.getAccumulatedSamples(), bandCount: bandCount)
+                let bands = SpectrumComputer.compute(from: AudioSampleProvider.shared.getAccumulatedSamples(), bandCount: bandCount)
                 for i in 0..<min(bands.count, smoothBands.count) {
                     if bands[i] > smoothBands[i] {
                         smoothBands[i] = bands[i] * 0.8 + smoothBands[i] * 0.2

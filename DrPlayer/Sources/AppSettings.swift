@@ -13,6 +13,9 @@ class AppSettings {
     var mpdPort: Int {
         didSet { UserDefaults.standard.set(mpdPort, forKey: "mpdPort") }
     }
+    var mpdPassword: String {
+        didSet { UserDefaults.standard.set(mpdPassword, forKey: "mpdPassword") }
+    }
     var hasCompletedSetup: Bool {
         didSet { UserDefaults.standard.set(hasCompletedSetup, forKey: "hasCompletedSetup") }
     }
@@ -58,6 +61,7 @@ class AppSettings {
         self.mpdPort = { let p = defaults.integer(forKey: "mpdPort"); return p > 0 ? p : nil }()
             ?? detected.port
             ?? 6600
+        self.mpdPassword = defaults.string(forKey: "mpdPassword") ?? ""
         self.hasCompletedSetup = defaults.bool(forKey: "hasCompletedSetup")
         self.lastfmApiKey = defaults.string(forKey: "lastfmApiKey") ?? ""
         self.discogsKey = defaults.string(forKey: "discogsKey") ?? ""

@@ -29,18 +29,35 @@ class MPDClient {
 
             connection.start(queue: .global())
 
-            // Read the MPD greeting, then send command, then read response
+            // Read the MPD greeting, then authenticate if needed, then send command
             readUntilOK(connection: connection, buffer: &buffer) { _ in
-                let msg = "\(command)\n"
-                connection.send(
-                    content: msg.data(using: .utf8),
-                    completion: .contentProcessed { _ in }
-                )
+                let sendCommand = {
+                    let msg = "\(command)\n"
+                    connection.send(
+                        content: msg.data(using: .utf8),
+                        completion: .contentProcessed { _ in }
+                    )
 
-                var responseBuffer = Data()
-                self.readUntilOK(connection: connection, buffer: &responseBuffer) { lines in
-                    connection.cancel()
-                    continuation.resume(returning: lines)
+                    var responseBuffer = Data()
+                    self.readUntilOK(connection: connection, buffer: &responseBuffer) { lines in
+                        connection.cancel()
+                        continuation.resume(returning: lines)
+                    }
+                }
+
+                let password = AppSettings.shared.mpdPassword
+                if !password.isEmpty {
+                    let authMsg = "password \(password)\n"
+                    connection.send(
+                        content: authMsg.data(using: .utf8),
+                        completion: .contentProcessed { _ in }
+                    )
+                    var authBuffer = Data()
+                    self.readUntilOK(connection: connection, buffer: &authBuffer) { _ in
+                        sendCommand()
+                    }
+                } else {
+                    sendCommand()
                 }
             }
         }

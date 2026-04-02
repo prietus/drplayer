@@ -8,7 +8,7 @@ struct NowPlayingFullView: View {
     @State private var currentImageIndex = 0
     @State private var currentImage: NSImage?
     enum FullScreenMode { case lyrics, artwork, visualizer }
-    @State private var mode: FullScreenMode = .lyrics
+    @State private var mode: FullScreenMode = .artwork
     @State private var imageTimer: Timer?
     @State private var vizMode: VisualizerMode = .spectrum
 
