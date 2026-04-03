@@ -26,7 +26,7 @@ enum DiscogsService {
     private static var isConfigured: Bool { !key.isEmpty && !secret.isEmpty }
 
     /// Search by catalog number (most precise for pressing identification)
-    static func searchByCatalog(_ catno: String, country: String? = nil, label: String? = nil) async -> DiscogsRelease? {
+    static func searchByCatalog(_ catno: String, country: String? = nil, label: String? = nil, format: String? = nil) async -> DiscogsRelease? {
         guard isConfigured else { return nil }
         let suffix = (country.map { "_\($0.lowercased())" } ?? "") + (label.map { "_lbl_\($0.lowercased())" } ?? "")
         let cacheKey = "discogs_catno_\(catno.lowercased())\(suffix)"
@@ -38,7 +38,7 @@ enum DiscogsService {
         if let label, !label.isEmpty, let encodedLabel = label.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
             urlStr += "&label=\(encodedLabel)"
         }
-        guard let results = await searchRequest(urlStr: urlStr, preferredCountry: country), let firstId = results.first else {
+        guard let results = await searchRequest(urlStr: urlStr, preferredCountry: country, preferredFormat: format), let firstId = results.first else {
             MetadataCache.setString(cacheKey, value: "(none)")
             return nil
         }
@@ -175,22 +175,33 @@ enum DiscogsService {
 
     /// Search with optional country hint to rank results.
     /// Prefers official releases and matching country over random first result.
-    private static func searchRequest(urlStr: String, preferredCountry: String? = nil) async -> [Int]? {
+    private static func searchRequest(urlStr: String, preferredCountry: String? = nil, preferredFormat: String? = nil) async -> [Int]? {
         guard let url = URL(string: urlStr) else { return nil }
         guard let data = await fetch(url) else { return nil }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let results = json["results"] as? [[String: Any]] else { return nil }
 
-        // Rank results: prefer official releases and matching country
+        // Rank results: prefer official releases, matching country, and matching format
         let ranked = results.compactMap { result -> (id: Int, score: Int)? in
             guard let id = result["id"] as? Int else { return nil }
             var score = 0
 
-            // Penalize unofficial/bootleg releases
             let formats = (result["format"] as? [String]) ?? []
             let formatStr = formats.joined(separator: " ").lowercased()
+
+            // Penalize unofficial/bootleg releases
             if formatStr.contains("unofficial") || formatStr.contains("bootleg") {
                 score -= 20
+            }
+
+            // Format match: e.g. prefer SACD results when file is DSF
+            if let pf = preferredFormat?.lowercased() {
+                if formatStr.contains(pf) {
+                    score += 15
+                } else if pf == "sacd" && !formatStr.contains("sacd") {
+                    // DSF file but result is plain CD — penalize
+                    score -= 5
+                }
             }
 
             // Country match bonus

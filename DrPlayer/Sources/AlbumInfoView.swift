@@ -104,10 +104,19 @@ struct AlbumInfoView: View {
 
     /// Whether MusicBrainz found the exact pressing (matching file label tag)
     private var mbMatchesEdition: Bool {
-        guard !fileLabel.isEmpty, let rel = release else { return true }
+        let cleaned = cleanLabel(fileLabel)
+        guard !cleaned.isEmpty, let rel = release else { return true }
         if rel.label.isEmpty { return true }
-        return rel.label.localizedCaseInsensitiveContains(fileLabel)
-            || fileLabel.localizedCaseInsensitiveContains(rel.label)
+        return rel.label.localizedCaseInsensitiveContains(cleaned)
+            || cleaned.localizedCaseInsensitiveContains(rel.label)
+    }
+
+    private func cleanLabel(_ label: String) -> String {
+        var cleaned = label
+        cleaned = cleaned.replacingOccurrences(of: #"^\(P\)\s*"#, with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: #"^\(C\)\s*"#, with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: #"^[℗©]\s*"#, with: "", options: .regularExpression)
+        return cleaned.trimmingCharacters(in: .whitespaces)
     }
 
     // MARK: - CAPA 2: Release Summary Badge

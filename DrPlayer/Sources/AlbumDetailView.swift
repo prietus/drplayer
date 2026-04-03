@@ -679,10 +679,12 @@ struct AlbumDetailView: View {
                     Button {
                         let currentPath = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
                         let editionPath = (AppSettings.shared.resolveFilePath(edition.folder) as NSString).resolvingSymlinksInPath
+                        let config = NSWorkspace.OpenConfiguration()
+                        config.createsNewApplicationInstance = false
                         NSWorkspace.shared.open(
                             [URL(fileURLWithPath: currentPath), URL(fileURLWithPath: editionPath)],
                             withApplicationAt: URL(fileURLWithPath: "/Applications/DrDoctor.app"),
-                            configuration: NSWorkspace.OpenConfiguration()
+                            configuration: config
                         )
                     } label: {
                         Label("Compare with current", systemImage: "arrow.left.arrow.right")
@@ -753,12 +755,37 @@ struct AlbumDetailView: View {
         return mbRelease?.label ?? dgRelease?.label
     }
 
-    /// Whether MusicBrainz found the exact pressing (matching file label tag)
+    /// Whether MusicBrainz found the exact pressing (matching file label and catalog)
     private var mbMatchesEdition: Bool {
-        guard !album.label.isEmpty, let mb = mbRelease else { return true }
-        if mb.label.isEmpty { return true }
-        return mb.label.localizedCaseInsensitiveContains(album.label)
-            || album.label.localizedCaseInsensitiveContains(mb.label)
+        guard let mb = mbRelease else { return true }
+        // Check label match
+        let labelMatch: Bool
+        let cleanedLabel = cleanLabel(album.label)
+        if cleanedLabel.isEmpty || mb.label.isEmpty {
+            labelMatch = true
+        } else {
+            labelMatch = mb.label.localizedCaseInsensitiveContains(cleanedLabel)
+                || cleanedLabel.localizedCaseInsensitiveContains(mb.label)
+        }
+        // Check catalog match — if file has a catalog in its title, it must match MB's catalog
+        if let fileCatno = extractCatalog(album.title), !fileCatno.isEmpty, !mb.catalogNumber.isEmpty {
+            let normalizedFile = fileCatno.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "-", with: "").lowercased()
+            let normalizedMB = mb.catalogNumber.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "-", with: "").lowercased()
+            if normalizedFile != normalizedMB && !normalizedMB.contains(normalizedFile) && !normalizedFile.contains(normalizedMB) {
+                return false
+            }
+        }
+        return labelMatch
+    }
+
+    /// Strip common prefixes from label tags: (P), (C), ℗, ©
+    private func cleanLabel(_ label: String) -> String {
+        var cleaned = label
+        // Remove (P), (C), ℗, © prefixes
+        cleaned = cleaned.replacingOccurrences(of: #"^\(P\)\s*"#, with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: #"^\(C\)\s*"#, with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: #"^[℗©]\s*"#, with: "", options: .regularExpression)
+        return cleaned.trimmingCharacters(in: .whitespaces)
     }
 
     private var releaseCatalog: String? {
@@ -846,7 +873,7 @@ struct AlbumDetailView: View {
         let hints = detectHints()
 
         // MusicBrainz: use file label to find the correct pressing
-        let tagLabel = album.label
+        let tagLabel = cleanLabel(album.label)
         var mb: MBRelease?
         if !album.musicbrainzAlbumId.isEmpty {
             mb = await MusicBrainzService.fetchRelease(id: album.musicbrainzAlbumId)
@@ -877,10 +904,10 @@ struct AlbumDetailView: View {
         let dgLabel = tagLabel.isEmpty ? nil : tagLabel
         var dg: DiscogsRelease?
         if let catno = catalogFromTitle {
-            dg = await DiscogsService.searchByCatalog(catno, country: mbCountry, label: dgLabel)
+            dg = await DiscogsService.searchByCatalog(catno, country: mbCountry, label: dgLabel, format: hints.format)
         }
         if dg == nil, let catno = mb?.catalogNumber, !catno.isEmpty {
-            dg = await DiscogsService.searchByCatalog(catno, country: mbCountry, label: dgLabel)
+            dg = await DiscogsService.searchByCatalog(catno, country: mbCountry, label: dgLabel, format: hints.format)
         }
         if dg == nil, let barcode = mb?.barcode, !barcode.isEmpty {
             dg = await DiscogsService.searchByBarcode(barcode, country: mbCountry)
