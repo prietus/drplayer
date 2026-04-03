@@ -210,6 +210,17 @@ struct AlbumDetailView: View {
                         }
 
                         Button {
+                            let path = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
+                            NSWorkspace.shared.open(
+                                [URL(fileURLWithPath: path)],
+                                withApplicationAt: URL(fileURLWithPath: "/Applications/DrDoctor.app"),
+                                configuration: NSWorkspace.OpenConfiguration()
+                            )
+                        } label: {
+                            Label("Open in Dr. Doctor", systemImage: "waveform.badge.magnifyingglass")
+                        }
+
+                        Button {
                             Task {
                                 // Clear cached API data so it re-fetches with new tags
                                 mbRelease = nil
@@ -641,16 +652,86 @@ struct AlbumDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
-                .overlay(alignment: .trailing) {
+                .contextMenu {
                     Button {
                         onPlayFile(edition.tracks.first?.file ?? "")
                     } label: {
-                        Image(systemName: "play.circle")
+                        Label("Play", systemImage: "play.fill")
+                    }
+                    Button {
+                        for track in edition.tracks {
+                            onEnqueueTrack(track)
+                        }
+                    } label: {
+                        Label("Add to queue", systemImage: "text.badge.plus")
+                    }
+                    Divider()
+                    Button {
+                        let path = (AppSettings.shared.resolveFilePath(edition.folder) as NSString).resolvingSymlinksInPath
+                        NSWorkspace.shared.open(
+                            [URL(fileURLWithPath: path)],
+                            withApplicationAt: URL(fileURLWithPath: "/Applications/DrDoctor.app"),
+                            configuration: NSWorkspace.OpenConfiguration()
+                        )
+                    } label: {
+                        Label("Analyze in Dr. Doctor", systemImage: "waveform.badge.magnifyingglass")
+                    }
+                    Button {
+                        let currentPath = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
+                        let editionPath = (AppSettings.shared.resolveFilePath(edition.folder) as NSString).resolvingSymlinksInPath
+                        NSWorkspace.shared.open(
+                            [URL(fileURLWithPath: currentPath), URL(fileURLWithPath: editionPath)],
+                            withApplicationAt: URL(fileURLWithPath: "/Applications/DrDoctor.app"),
+                            configuration: NSWorkspace.OpenConfiguration()
+                        )
+                    } label: {
+                        Label("Compare with current", systemImage: "arrow.left.arrow.right")
+                    }
+                }
+                .overlay(alignment: .trailing) {
+                    Menu {
+                        Button {
+                            onPlayFile(edition.tracks.first?.file ?? "")
+                        } label: {
+                            Label("Play", systemImage: "play.fill")
+                        }
+                        Button {
+                            for track in edition.tracks {
+                                onEnqueueTrack(track)
+                            }
+                        } label: {
+                            Label("Add to queue", systemImage: "text.badge.plus")
+                        }
+                        Divider()
+                        Button {
+                            let path = (AppSettings.shared.resolveFilePath(edition.folder) as NSString).resolvingSymlinksInPath
+                            NSWorkspace.shared.open(
+                                [URL(fileURLWithPath: path)],
+                                withApplicationAt: URL(fileURLWithPath: "/Applications/DrDoctor.app"),
+                                configuration: NSWorkspace.OpenConfiguration()
+                            )
+                        } label: {
+                            Label("Analyze in Dr. Doctor", systemImage: "waveform.badge.magnifyingglass")
+                        }
+                        Button {
+                            let currentPath = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
+                            let editionPath = (AppSettings.shared.resolveFilePath(edition.folder) as NSString).resolvingSymlinksInPath
+                            NSWorkspace.shared.open(
+                                [URL(fileURLWithPath: currentPath), URL(fileURLWithPath: editionPath)],
+                                withApplicationAt: URL(fileURLWithPath: "/Applications/DrDoctor.app"),
+                                configuration: NSWorkspace.OpenConfiguration()
+                            )
+                        } label: {
+                            Label("Compare with current", systemImage: "arrow.left.arrow.right")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                             .font(.title3)
                             .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
-                    .help("Play this edition")
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
                     .padding(.trailing, 8)
                 }
             }

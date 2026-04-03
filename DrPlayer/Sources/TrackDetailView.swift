@@ -140,6 +140,19 @@ struct TrackDetailView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+
+                    Button {
+                        let fullPath = (AppSettings.shared.resolveFilePath(track.file) as NSString).resolvingSymlinksInPath
+                        NSWorkspace.shared.open(
+                            [URL(fileURLWithPath: fullPath)],
+                            withApplicationAt: URL(fileURLWithPath: "/Applications/DrDoctor.app"),
+                            configuration: NSWorkspace.OpenConfiguration()
+                        )
+                    } label: {
+                        Label("Dr. Doctor", systemImage: "waveform.badge.magnifyingglass")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
                 .padding(.top, 6)
             }
