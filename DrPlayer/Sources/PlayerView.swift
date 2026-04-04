@@ -12,10 +12,11 @@ struct PlayerView: View {
     @State private var showFullPlayer = false
     @State private var showVisualizer = false
     @State private var showSetup = !AppSettings.shared.hasCompletedSetup
-    @State private var browseMode: BrowseMode = .albums
+    @State private var browseMode: BrowseMode = .home
     @State private var navigateToProducer: String? = nil
 
     enum BrowseMode: String, CaseIterable {
+        case home = "Home"
         case albums = "Albums"
         case artists = "Artists"
         case labels = "Labels"
@@ -165,6 +166,21 @@ struct PlayerView: View {
 
                         // Content based on browse mode
                         switch browseMode {
+                        case .home:
+                            HomeView(
+                                vm: vm,
+                                onSelectAlbum: { album in
+                                    lastAlbumId = album.id
+                                    Task {
+                                        var a = album
+                                        await vm.loadRatings(for: &a)
+                                        selectedAlbum = a
+                                    }
+                                },
+                                onPlayFile: { file in
+                                    Task { await vm.enqueueAndPlay(file: file) }
+                                }
+                            )
                         case .albums:
                             AlbumGridView(
                                 albums: filteredAlbums,

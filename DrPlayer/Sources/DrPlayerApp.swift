@@ -35,7 +35,7 @@ struct DrPlayerApp: App {
     private var aboutOptions: [NSApplication.AboutPanelOptionKey: Any] {
         [
             .applicationName: "DrPlayer",
-            .applicationVersion: "1.4.0",
+            .applicationVersion: "1.8.2",
             .version: "1",
             .credits: NSAttributedString(
                 string: "A music player for people who care about editions.\n\nBitperfect MPD playback with collector-grade metadata.\nBrowse by label, producer, engineer, edition and format.\n\nBuilt with SwiftUI, MPD, MusicBrainz, Discogs, Last.fm and Wikipedia.\n\nLicensed under GPLv3\nhttps://github.com/prietus/drplayer",
