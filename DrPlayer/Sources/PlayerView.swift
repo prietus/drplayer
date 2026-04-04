@@ -422,7 +422,7 @@ struct PlayerView: View {
                     .padding(4)
             }
         }
-        .onAppear { vm.start() }
+        .onAppear { PlayerViewModel.current = vm; vm.start() }
         .onDisappear { vm.stop() }
 
         // Full screen now playing overlay
@@ -621,6 +621,14 @@ struct NowPlayingBar: View {
                         .foregroundColor(vm.radioEnabled ? .green : .secondary)
                 }
                 .help(vm.radioEnabled ? "Radio active — click to disable" : "Start radio based on current track")
+
+                Button {
+                    MiniPlayerWindowController.shared.toggle(vm: vm)
+                } label: {
+                    Image(systemName: "pip")
+                        .foregroundColor(MiniPlayerWindowController.shared.isVisible ? ThemeManager.shared.current.accent : .secondary)
+                }
+                .help("Mini Player")
 
                 BackgroundTasksIndicator(vm: vm)
             }

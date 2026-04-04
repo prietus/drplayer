@@ -17,6 +17,14 @@ struct DrPlayerApp: App {
                     NSApp.orderFrontStandardAboutPanel(options: aboutOptions)
                 }
             }
+            CommandGroup(after: .windowArrangement) {
+                Button("Mini Player") {
+                    if let vm = PlayerViewModel.current {
+                        MiniPlayerWindowController.shared.toggle(vm: vm)
+                    }
+                }
+                .keyboardShortcut("m", modifiers: [.command, .shift])
+            }
         }
 
         Settings {

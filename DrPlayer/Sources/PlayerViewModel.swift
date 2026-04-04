@@ -27,6 +27,9 @@ struct Track: Identifiable {
 
 @Observable
 class PlayerViewModel {
+    /// Weak reference for app-level access (mini player, menu commands)
+    static weak var current: PlayerViewModel?
+
     var currentTitle = "---"
     var currentArtist = ""
     var currentAlbum = ""
