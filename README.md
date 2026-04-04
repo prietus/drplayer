@@ -15,6 +15,7 @@ A macOS music player built with SwiftUI that connects to [MPD](https://www.music
 - **Full-screen now playing** view with artwork gallery
 
 ### Audio Quality
+- **Local or remote** — run MPD locally for bitperfect playback, or use DrPlayer as a remote control for an MPD server connected to your DAC and reference chain over the network
 - **DR14 Dynamic Range analysis** — computed natively using Accelerate/vDSP, cached per track
 - **Signal path indicator** — shows if playback is bitperfect (no mixer, no resampling)
 - **Audio output management** — enable/disable MPD outputs, shows plugin type, mixer config, DoP status
