@@ -550,11 +550,8 @@ class PlayerViewModel {
 
     /// Called when radio is enabled and playback stops (queue ended)
     private func continueRadio() async {
-        // Update context based on what was just played
-        if !playlist.isEmpty {
-            radioContext = RadioEngine.contextFromPlaylist(playlist)
-        }
-        // Clear old queue and generate new
+        // Keep original seed context — don't update from radio-generated tracks
+        // to avoid genre drift (e.g. everything converging to "blues")
         try? await mpd.command("clear")
         await generateRadioQueue()
     }
