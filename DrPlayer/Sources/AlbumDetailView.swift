@@ -679,13 +679,7 @@ struct AlbumDetailView: View {
                     Button {
                         let currentPath = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
                         let editionPath = (AppSettings.shared.resolveFilePath(edition.folder) as NSString).resolvingSymlinksInPath
-                        let config = NSWorkspace.OpenConfiguration()
-                        config.createsNewApplicationInstance = false
-                        NSWorkspace.shared.open(
-                            [URL(fileURLWithPath: currentPath), URL(fileURLWithPath: editionPath)],
-                            withApplicationAt: URL(fileURLWithPath: "/Applications/DrDoctor.app"),
-                            configuration: config
-                        )
+                        openInDrDoctor([currentPath, editionPath])
                     } label: {
                         Label("Compare with current", systemImage: "arrow.left.arrow.right")
                     }
@@ -718,11 +712,7 @@ struct AlbumDetailView: View {
                         Button {
                             let currentPath = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
                             let editionPath = (AppSettings.shared.resolveFilePath(edition.folder) as NSString).resolvingSymlinksInPath
-                            NSWorkspace.shared.open(
-                                [URL(fileURLWithPath: currentPath), URL(fileURLWithPath: editionPath)],
-                                withApplicationAt: URL(fileURLWithPath: "/Applications/DrDoctor.app"),
-                                configuration: NSWorkspace.OpenConfiguration()
-                            )
+                            openInDrDoctor([currentPath, editionPath])
                         } label: {
                             Label("Compare with current", systemImage: "arrow.left.arrow.right")
                         }
@@ -786,6 +776,15 @@ struct AlbumDetailView: View {
         cleaned = cleaned.replacingOccurrences(of: #"^\(C\)\s*"#, with: "", options: .regularExpression)
         cleaned = cleaned.replacingOccurrences(of: #"^[℗©]\s*"#, with: "", options: .regularExpression)
         return cleaned.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Open paths in DrDoctor using `open -a` (single invocation, no double-launch)
+    private func openInDrDoctor(_ paths: [String]) {
+        var pid: pid_t = 0
+        let args = ["/usr/bin/open", "-a", "DrDoctor"] + paths
+        var cArgs = args.map { strdup($0) } + [nil]
+        defer { cArgs.forEach { free($0) } }
+        posix_spawn(&pid, "/usr/bin/open", nil, nil, &cArgs, environ)
     }
 
     private var releaseCatalog: String? {
