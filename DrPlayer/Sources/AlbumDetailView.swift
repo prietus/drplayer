@@ -33,8 +33,12 @@ struct AlbumDetailView: View {
     @State private var selectedTrack: Track? = nil
     @State private var showEditionComparison = false
     @State private var showCoverZoom = false
+    @State private var coverIndex = 0
+    @State private var coverImages: [NSImage?] = []
+    @ObservedObject private var pressingStore = PressingStore.shared
     @State private var mbRelease: MBRelease?
     @State private var dgRelease: DiscogsRelease?
+    @State private var fileTags: (label: String, catalog: String, country: String, barcode: String, producer: String, engineer: String, mixer: String) = ("", "", "", "", "", "", "")
 
     var isThisAlbumPlaying: Bool {
         currentAlbumTitle == album.title
@@ -140,6 +144,15 @@ struct AlbumDetailView: View {
             let paths = await Task.detached { a.allArtwork }.value
             artworkPaths = paths
             artworkCount = paths.count
+            // Initialize carousel: first image is the cover, rest load on demand
+            coverIndex = 0
+            coverImages = paths.map { _ in nil as NSImage? }
+            if let cover {
+                // Use the already-loaded cover for the first image
+                if !coverImages.isEmpty { coverImages[0] = cover }
+            } else if !paths.isEmpty {
+                loadCoverImageIfNeeded(at: 0)
+            }
         }
         .task(id: album.id) {
             await loadReleaseInfo()
@@ -261,52 +274,250 @@ struct AlbumDetailView: View {
                 // Metadata grid
                 metadataGrid
                     .padding(.top, 12)
+
+                // Certified pressing badge
+                if let info = currentPressing {
+                    pressingBadge(info)
+                        .padding(.top, 12)
+                }
             }
             .frame(minWidth: 200)
 
             // Center: MusicBrainz + Wikipedia info
-            AlbumInfoView(artist: album.artist, albumTitle: album.title, musicbrainzAlbumId: album.musicbrainzAlbumId, fileLabel: album.label)
+            AlbumInfoView(artist: album.artist, albumTitle: album.title, musicbrainzAlbumId: album.musicbrainzAlbumId, fileLabel: album.label, fileCatalog: album.catalogNumber, fileCountry: album.country, firstTrackFile: album.tracks.first?.file ?? "")
                 .frame(maxWidth: .infinity)
 
-            // Cover art (right) — click to enlarge
-            if let cover {
-                Image(nsImage: cover)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 240, maxHeight: 240)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .shadow(radius: 8)
-                    .onTapGesture { showCoverZoom = true }
-                    .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
-                    .popover(isPresented: $showCoverZoom) {
-                        Image(nsImage: cover)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxWidth: 600, maxHeight: 600)
-                            .padding(8)
-                    }
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.quaternary)
-                    .frame(width: 200, height: 200)
-                    .overlay {
-                        VStack(spacing: 8) {
-                            Image(systemName: "music.note")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.tertiary)
-                            Button {
-                                Task {
-                                    CoverArtService.clearCache(artist: album.artist, album: album.title)
-                                    cover = await album.coverImageAsync()
+            // Cover art carousel (right)
+            coverCarousel
+        }
+    }
+
+    // MARK: - Cover Carousel
+
+    private var coverCarousel: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                if coverImages.isEmpty {
+                    // No images loaded yet — placeholder
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(.quaternary)
+                        .frame(width: 200, height: 200)
+                        .overlay {
+                            VStack(spacing: 8) {
+                                Image(systemName: "music.note")
+                                    .font(.system(size: 40))
+                                    .foregroundStyle(.tertiary)
+                                Button {
+                                    Task {
+                                        CoverArtService.clearCache(artist: album.artist, album: album.title)
+                                        cover = await album.coverImageAsync()
+                                    }
+                                } label: {
+                                    Label("Retry", systemImage: "arrow.trianglehead.clockwise")
+                                        .font(.caption)
                                 }
-                            } label: {
-                                Label("Retry", systemImage: "arrow.trianglehead.clockwise")
-                                    .font(.caption)
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                        }
+                } else if let img = coverImages[coverIndex] {
+                    Image(nsImage: img)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: 240, maxHeight: 240)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .shadow(radius: 8)
+                        .id(coverIndex)
+                        .overlay(alignment: .bottomTrailing) {
+                            HStack(spacing: 6) {
+                                Button {
+                                    let fullPath = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
+                                    if let url = ArtworkServer.shared.serveForIdentify(filePath: artworkPaths[coverIndex], albumFullPath: fullPath) {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                } label: {
+                                    Image(systemName: "checkmark.seal")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.white)
+                                        .padding(6)
+                                        .background(.black.opacity(0.6))
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                }
+                                .buttonStyle(.plain)
+                                .help("Identify pressing")
+
+                                Button {
+                                    if let url = ArtworkServer.shared.serve(filePath: artworkPaths[coverIndex]) {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                } label: {
+                                    Image(systemName: "barcode.viewfinder")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.white)
+                                        .padding(6)
+                                        .background(.black.opacity(0.6))
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                }
+                                .buttonStyle(.plain)
+                                .help("Scan OBI")
+                            }
+                            .padding(8)
+                        }
+                        .onTapGesture { showCoverZoom = true }
+                        .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+                        .popover(isPresented: $showCoverZoom) {
+                            if let img = coverImages[coverIndex] {
+                                VStack(spacing: 4) {
+                                    Image(nsImage: img)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(maxWidth: 600, maxHeight: 600)
+                                    Text((artworkPaths[coverIndex] as NSString).lastPathComponent)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(8)
+                            }
+                        }
+                } else {
+                    // Image still loading
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(.quaternary)
+                        .frame(width: 200, height: 200)
+                        .overlay { ProgressView() }
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 30)
+                    .onEnded { value in
+                        if value.translation.width < -30 && coverIndex < coverImages.count - 1 {
+                            coverIndex += 1
+                            loadCoverImageIfNeeded(at: coverIndex)
+                        } else if value.translation.width > 30 && coverIndex > 0 {
+                            coverIndex -= 1
                         }
                     }
+            )
+
+            // Page indicator dots (only if more than 1 image)
+            if coverImages.count > 1 {
+                HStack(spacing: 4) {
+                    Button {
+                        if coverIndex > 0 {
+                            coverIndex -= 1
+                            loadCoverImageIfNeeded(at: coverIndex)
+                        }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.caption2)
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(coverIndex > 0 ? 1 : 0.3)
+
+                    Text("\(coverIndex + 1)/\(coverImages.count)")
+                        .font(.caption2.monospacedDigit())
+
+                    Button {
+                        if coverIndex < coverImages.count - 1 {
+                            coverIndex += 1
+                            loadCoverImageIfNeeded(at: coverIndex)
+                        }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(coverIndex < coverImages.count - 1 ? 1 : 0.3)
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func loadCoverImageIfNeeded(at index: Int) {
+        guard index >= 0, index < coverImages.count, coverImages[index] == nil else { return }
+        let path = artworkPaths[index]
+        Task.detached {
+            let img = NSImage(contentsOfFile: (path as NSString).resolvingSymlinksInPath)
+            await MainActor.run {
+                if index < coverImages.count {
+                    coverImages[index] = img
+                }
+            }
+        }
+    }
+
+    // MARK: - Pressing Badge
+
+    private var currentPressing: PressingInfo? {
+        let fullPath = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
+        return pressingStore.get(albumFullPath: fullPath)
+    }
+
+    @ViewBuilder
+    private func pressingBadge(_ info: PressingInfo) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
+                    .font(.caption)
+                if !info.label.isEmpty {
+                    Text(info.label)
+                        .font(.caption.bold())
+                }
+                if !info.country.isEmpty {
+                    Text("·").foregroundStyle(.tertiary)
+                    Text(info.country)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            HStack(spacing: 6) {
+                if !info.catalogNumber.isEmpty {
+                    Text(info.catalogNumber)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+                if !info.year.isEmpty {
+                    Text("·").foregroundStyle(.tertiary)
+                    Text(info.year).font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            if !info.formatDisplay.isEmpty {
+                Text(info.formatDisplay)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            if info.hasDetailedInfo || !info.masteringEngineer.isEmpty {
+                Divider().padding(.vertical, 2)
+                pressingDetail("Mastered by", info.masteringEngineer)
+                pressingDetail("Cut by", info.cutBy)
+                pressingDetail("Pressed at", info.pressedAt)
+                pressingDetail("Recorded at", info.recordedAt)
+                pressingDetail("Mixed at", info.mixedAt)
+                pressingDetail("Matrix", info.matrixRunout, monospaced: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.green.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    @ViewBuilder
+    private func pressingDetail(_ label: String, _ value: String, monospaced: Bool = false) -> some View {
+        if !value.isEmpty {
+            HStack(alignment: .top, spacing: 6) {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 78, alignment: .leading)
+                Text(value)
+                    .font(monospaced ? .caption2.monospaced() : .caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -417,31 +628,60 @@ struct AlbumDetailView: View {
                     }
                 }
             }
-            // Producer / Engineer / Mastering from MusicBrainz credits
-            if let mb = mbRelease {
-                if !mb.producers.isEmpty {
-                    GridRow {
-                        Text("Producer")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        creditLinks(mb.producers)
-                    }
+            // Producer / Engineer / Mastering — prefer MusicBrainz, fallback to file tags
+            let producers = mbRelease?.producers ?? []
+            let engineers = mbRelease?.engineers ?? []
+            let mastering = mbRelease?.masteringEngineers ?? []
+            if !producers.isEmpty {
+                GridRow {
+                    Text("Producer")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    creditLinks(producers)
                 }
-                if !mb.engineers.isEmpty {
-                    GridRow {
-                        Text("Engineer")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        creditLinks(mb.engineers)
-                    }
+            } else if !fileTags.producer.isEmpty {
+                GridRow {
+                    Text("Producer")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Text(fileTags.producer)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                if !mb.masteringEngineers.isEmpty {
-                    GridRow {
-                        Text("Mastering")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        creditLinks(mb.masteringEngineers)
-                    }
+            }
+            if !engineers.isEmpty {
+                GridRow {
+                    Text("Engineer")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    creditLinks(engineers)
+                }
+            } else if !fileTags.engineer.isEmpty {
+                GridRow {
+                    Text("Engineer")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Text(fileTags.engineer)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if !fileTags.mixer.isEmpty && engineers.isEmpty {
+                GridRow {
+                    Text("Mixer")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Text(fileTags.mixer)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if !mastering.isEmpty {
+                GridRow {
+                    Text("Mastering")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    creditLinks(mastering)
                 }
             }
             if artworkCount > 0 {
@@ -733,8 +973,9 @@ struct AlbumDetailView: View {
     // MARK: - Release Info
 
     private var releaseLabel: String? {
-        // Prefer file tag — it reflects the actual pressing the user owns
-        if !album.label.isEmpty { return album.label }
+        // Prefer file tag (MPD or ffprobe) — it reflects the actual pressing the user owns
+        let tag = album.label.isEmpty ? fileTags.label : album.label
+        if !tag.isEmpty { return tag }
         // Fall back to API sources matched by catalog number
         if let mb = mbRelease, !mb.label.isEmpty, !mb.catalogNumber.isEmpty {
             return mb.label
@@ -748,17 +989,19 @@ struct AlbumDetailView: View {
     /// Whether MusicBrainz found the exact pressing (matching file label and catalog)
     private var mbMatchesEdition: Bool {
         guard let mb = mbRelease else { return true }
-        // Check label match
+        // Check label match (MPD or ffprobe)
         let labelMatch: Bool
-        let cleanedLabel = cleanLabel(album.label)
+        let tagLabel = album.label.isEmpty ? fileTags.label : album.label
+        let cleanedLabel = cleanLabel(tagLabel)
         if cleanedLabel.isEmpty || mb.label.isEmpty {
             labelMatch = true
         } else {
             labelMatch = mb.label.localizedCaseInsensitiveContains(cleanedLabel)
                 || cleanedLabel.localizedCaseInsensitiveContains(mb.label)
         }
-        // Check catalog match — if file has a catalog in its title, it must match MB's catalog
-        if let fileCatno = extractCatalog(album.title), !fileCatno.isEmpty, !mb.catalogNumber.isEmpty {
+        // Check catalog match — from title or file tags
+        let fileCatno = extractCatalog(album.title) ?? (fileTags.catalog.isEmpty ? nil : fileTags.catalog)
+        if let fileCatno, !fileCatno.isEmpty, !mb.catalogNumber.isEmpty {
             let normalizedFile = fileCatno.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "-", with: "").lowercased()
             let normalizedMB = mb.catalogNumber.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "-", with: "").lowercased()
             if normalizedFile != normalizedMB && !normalizedMB.contains(normalizedFile) && !normalizedFile.contains(normalizedMB) {
@@ -788,11 +1031,17 @@ struct AlbumDetailView: View {
     }
 
     private var releaseCatalog: String? {
+        // Prefer file tag (MPD or ffprobe)
+        let tag = album.catalogNumber.isEmpty ? fileTags.catalog : album.catalogNumber
+        if !tag.isEmpty { return tag }
         let mb = mbMatchesEdition ? mbRelease?.catalogNumber : nil
         return mb ?? dgRelease?.catalogNumber
     }
 
     private var releaseCountry: String? {
+        // Prefer file tag (MPD or ffprobe)
+        let tag = album.country.isEmpty ? fileTags.country : album.country
+        if !tag.isEmpty { return tag }
         let mb = mbMatchesEdition ? mbRelease?.country : nil
         return mb ?? dgRelease?.country
     }
@@ -868,11 +1117,39 @@ struct AlbumDetailView: View {
 
     private func loadReleaseInfo() async {
         let cleanAlbum = cleanTitleForSearch(album.title)
-        let catalogFromTitle = extractCatalog(album.title)
+        var catalogFromTitle = extractCatalog(album.title)
         let hints = detectHints()
 
+        // Read file tags via ffprobe when MPD doesn't provide label/catalog/country
+        var fileLabel = album.label
+        var fileCatalog = album.catalogNumber
+        var fileCountry = album.country
+        var fileBarcode = ""
+        var fileProducer = ""
+        var fileEngineer = ""
+        var fileMixer = ""
+        if let firstTrack = album.tracks.first {
+            let fullPath = AppSettings.shared.resolveFilePath(firstTrack.file)
+            let tags = await TrackProbe.readFileTags(path: fullPath)
+            if fileLabel.isEmpty { fileLabel = tags["LABEL"] ?? tags["PUBLISHER"] ?? "" }
+            if fileCatalog.isEmpty { fileCatalog = tags["CATALOGNUMBER"] ?? "" }
+            if fileCountry.isEmpty { fileCountry = tags["RELEASECOUNTRY"] ?? "" }
+            fileBarcode = tags["BARCODE"] ?? tags["UPC"] ?? tags["EAN"] ?? ""
+            fileProducer = tags["PRODUCER"] ?? ""
+            fileEngineer = tags["ENGINEER"] ?? ""
+            fileMixer = tags["MIXER"] ?? tags["MIXEDBY"] ?? tags["MIXED BY"] ?? ""
+        }
+
+        // Persist file tags for computed properties
+        fileTags = (label: fileLabel, catalog: fileCatalog, country: fileCountry, barcode: fileBarcode, producer: fileProducer, engineer: fileEngineer, mixer: fileMixer)
+
+        // Use file catalog as if it were in the title
+        if catalogFromTitle == nil, !fileCatalog.isEmpty {
+            catalogFromTitle = fileCatalog
+        }
+
         // MusicBrainz: use file label to find the correct pressing
-        let tagLabel = cleanLabel(album.label)
+        let tagLabel = cleanLabel(fileLabel)
         var mb: MBRelease?
         if !album.musicbrainzAlbumId.isEmpty {
             mb = await MusicBrainzService.fetchRelease(id: album.musicbrainzAlbumId)
@@ -910,6 +1187,10 @@ struct AlbumDetailView: View {
         }
         if dg == nil, let barcode = mb?.barcode, !barcode.isEmpty {
             dg = await DiscogsService.searchByBarcode(barcode, country: mbCountry)
+        }
+        // Try file barcode before falling back to generic search
+        if dg == nil, !fileBarcode.isEmpty {
+            dg = await DiscogsService.searchByBarcode(fileBarcode, country: mbCountry)
         }
         if dg == nil {
             dg = await DiscogsService.search(artist: album.artist, album: cleanAlbum)

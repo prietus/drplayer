@@ -108,7 +108,7 @@ struct TrackRow: View {
 
     private func versionsPopover(_ versions: [TrackVersion]) -> some View {
         // Include current track in ranking
-        let allVersions = [(track: track, album: allAlbums.first(where: { $0.tracks.contains(where: { $0.file == track.file }) }) ?? Album(id: "", title: track.album, artist: track.artist, folder: "", date: "", originalDate: "", label: "", musicbrainzAlbumId: "", genres: []))]
+        let allVersions = [(track: track, album: allAlbums.first(where: { $0.tracks.contains(where: { $0.file == track.file }) }) ?? Album(id: "", title: track.album, artist: track.artist, folder: "", date: "", originalDate: "", label: "", catalogNumber: "", country: "", musicbrainzAlbumId: "", genres: []))]
             + versions.map { (track: $0.track, album: $0.album) }
         let ranked = AudioQualityScore.rankVersions(allVersions)
 

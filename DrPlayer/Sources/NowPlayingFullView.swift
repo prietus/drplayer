@@ -374,7 +374,7 @@ struct NowPlayingFullView: View {
         let albumPath = "\(musicBase)/\(folder)"
 
         Task.detached {
-            let tempAlbum = Album(id: "", title: "", artist: "", folder: folder, date: "", originalDate: "", label: "", musicbrainzAlbumId: "", genres: [])
+            let tempAlbum = Album(id: "", title: "", artist: "", folder: folder, date: "", originalDate: "", label: "", catalogNumber: "", country: "", musicbrainzAlbumId: "", genres: [])
             let paths = tempAlbum.allArtwork
             await MainActor.run {
                 artworkPaths = paths

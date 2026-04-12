@@ -56,6 +56,21 @@ cat > "$APP_DIR/Contents/Info.plist" << PLIST
         <key>NSAllowsArbitraryLoads</key>
         <true/>
     </dict>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.drplayer.identify</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>drplayer</string>
+            </array>
+        </dict>
+    </array>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>obiscanner</string>
+    </array>
 </dict>
 </plist>
 PLIST

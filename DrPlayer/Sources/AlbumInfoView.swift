@@ -5,6 +5,9 @@ struct AlbumInfoView: View {
     let albumTitle: String
     let musicbrainzAlbumId: String
     let fileLabel: String
+    var fileCatalog: String = ""
+    var fileCountry: String = ""
+    var firstTrackFile: String = ""
 
     @State private var release: MBRelease?
     @State private var artistInfo: MBArtistInfo?
@@ -474,25 +477,41 @@ struct AlbumInfoView: View {
 
     private func loadInfo() async {
         let cleanAlbum = cleanTitle(albumTitle)
-        let catalogFromTitle = extractCatalog(albumTitle)
+        var catalogFromTitle = extractCatalog(albumTitle)
         let hints = detectHints(albumTitle)
+
+        // Read file tags via ffprobe when MPD doesn't provide label/catalog
+        var effectiveLabel = fileLabel
+        var effectiveCatalog = fileCatalog
+        var effectiveBarcode = ""
+        if !firstTrackFile.isEmpty {
+            let fullPath = AppSettings.shared.resolveFilePath(firstTrackFile)
+            let tags = await TrackProbe.readFileTags(path: fullPath)
+            if effectiveLabel.isEmpty { effectiveLabel = tags["LABEL"] ?? tags["PUBLISHER"] ?? "" }
+            if effectiveCatalog.isEmpty { effectiveCatalog = tags["CATALOGNUMBER"] ?? "" }
+            effectiveBarcode = tags["BARCODE"] ?? tags["UPC"] ?? tags["EAN"] ?? ""
+        }
+        if catalogFromTitle == nil, !effectiveCatalog.isEmpty {
+            catalogFromTitle = effectiveCatalog
+        }
 
         // MusicBrainz: prefer catalog number → MB ID → format/country-specific → generic
         // Use file tag label to find the correct pressing (e.g. "Analogue Productions" vs "Fantasy")
-        let tagLabel = fileLabel
+        let tagLabel = effectiveLabel
+        let catno = catalogFromTitle
         async let mbRelease: MBRelease? = {
             // 1. Direct lookup by MusicBrainz ID (most precise)
             if !musicbrainzAlbumId.isEmpty {
                 return await MusicBrainzService.fetchRelease(id: musicbrainzAlbumId)
             }
             // 2. Search by catalog number + label from file tags (most specific)
-            if let catno = catalogFromTitle {
+            if let c = catno {
                 if !tagLabel.isEmpty {
-                    if let r = await MusicBrainzService.searchByCatalog(artist: artist, catno: catno, label: tagLabel) {
+                    if let r = await MusicBrainzService.searchByCatalog(artist: artist, catno: c, label: tagLabel) {
                         return r
                     }
                 }
-                if let r = await MusicBrainzService.searchByCatalog(artist: artist, catno: catno) {
+                if let r = await MusicBrainzService.searchByCatalog(artist: artist, catno: c) {
                     return r
                 }
             }
@@ -562,6 +581,9 @@ struct AlbumInfoView: View {
         }
         if discogs == nil, let barcode = rel?.barcode, !barcode.isEmpty {
             discogs = await DiscogsService.searchByBarcode(barcode, country: mbCountry)
+        }
+        if discogs == nil, !effectiveBarcode.isEmpty {
+            discogs = await DiscogsService.searchByBarcode(effectiveBarcode, country: mbCountry)
         }
         if discogs == nil {
             discogs = await DiscogsService.search(artist: artist, album: cleanAlbum)

@@ -11,6 +11,47 @@ enum TrackProbe {
         }
     }
 
+    /// Read only format-level tags from a file via ffprobe (lightweight).
+    /// Returns a case-insensitive dictionary of tag key → value.
+    static func readFileTags(path: String) async -> [String: String] {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let tags = runReadTags(path: path)
+                continuation.resume(returning: tags)
+            }
+        }
+    }
+
+    private static func runReadTags(path: String) -> [String: String] {
+        let resolved = (path as NSString).resolvingSymlinksInPath
+        let tmpFile = NSTemporaryDirectory() + "drplayer_tags_\(ProcessInfo.processInfo.globallyUniqueString).json"
+        defer { try? FileManager.default.removeItem(atPath: tmpFile) }
+
+        guard let ffprobe = AppSettings.ffprobePath else { return [:] }
+        let args = [
+            ffprobe,
+            "-v", "quiet",
+            "-print_format", "json",
+            "-show_entries", "format_tags",
+            resolved
+        ]
+
+        guard runProcess(args: args, outputFile: tmpFile) else { return [:] }
+
+        guard let data = FileManager.default.contents(atPath: tmpFile),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let format = json["format"] as? [String: Any],
+              let tags = format["tags"] as? [String: String] else {
+            return [:]
+        }
+        // Normalize keys to uppercase for case-insensitive lookup
+        var normalized: [String: String] = [:]
+        for (key, val) in tags {
+            normalized[key.uppercased()] = val
+        }
+        return normalized
+    }
+
     private static func runProbe(path: String) -> TrackMetadata {
         let resolved = (path as NSString).resolvingSymlinksInPath
         let tmpFile = NSTemporaryDirectory() + "drplayer_probe_\(ProcessInfo.processInfo.globallyUniqueString).json"

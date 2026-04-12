@@ -1056,6 +1056,8 @@ class PlayerViewModel {
             var date: String
             var originalDate: String
             var label: String
+            var catalogNumber: String
+            var country: String
             var musicbrainzAlbumId: String
             var genres: Set<String>
             var composers: Set<String>
@@ -1077,6 +1079,8 @@ class PlayerViewModel {
                     date: track["Date"] ?? "",
                     originalDate: track["OriginalDate"] ?? "",
                     label: track["Label"] ?? "",
+                    catalogNumber: track["CATALOGNUMBER"] ?? "",
+                    country: track["RELEASECOUNTRY"] ?? "",
                     musicbrainzAlbumId: track["MUSICBRAINZ_ALBUMID"] ?? "",
                     genres: [],
                     composers: [],
@@ -1102,6 +1106,8 @@ class PlayerViewModel {
                 date: info.date,
                 originalDate: info.originalDate,
                 label: info.label,
+                catalogNumber: info.catalogNumber,
+                country: info.country,
                 musicbrainzAlbumId: info.musicbrainzAlbumId,
                 genres: info.genres.sorted(),
                 composers: info.composers.sorted(),

@@ -15,6 +15,31 @@ struct DiscogsRelease {
     let url: String             // discogs.com URL
     let tracklist: [(position: String, title: String, duration: String)]
     let lowestPrice: String?    // marketplace lowest price
+    // Audiophile enrichment
+    let masteringEngineer: String
+    let cutBy: String
+    let pressedAt: String
+    let recordedAt: String
+    let mixedAt: String
+    let matrixRunout: String
+
+    func toPressingInfo() -> PressingInfo {
+        PressingInfo(
+            discogsId: id,
+            catalogNumber: catalogNumber,
+            label: label,
+            country: country,
+            year: year > 0 ? String(year) : "",
+            formats: formats,
+            masteringEngineer: masteringEngineer,
+            url: url,
+            cutBy: cutBy,
+            pressedAt: pressedAt,
+            recordedAt: recordedAt,
+            mixedAt: mixedAt,
+            matrixRunout: matrixRunout
+        )
+    }
 }
 
 enum DiscogsService {
@@ -153,6 +178,70 @@ enum DiscogsService {
             lowestPrice = String(format: "%.2f", lp)
         }
 
+        // Engineers from extraartists — mastering vs cutting
+        var masteringEngineer = ""
+        var cutBy = ""
+        if let extras = json["extraartists"] as? [[String: Any]] {
+            let masteringKeys = ["mastered by", "mastered at", "remastered by"]
+            let cutKeys = ["lacquer cut by", "cut by", "cutting engineer", "lacquer cut at"]
+            var mastering: [String] = []
+            var cutting: [String] = []
+            for artist in extras {
+                guard let role = (artist["role"] as? String)?.lowercased(),
+                      let rawName = artist["name"] as? String else { continue }
+                let name = rawName.replacingOccurrences(
+                    of: #"\s*\(\d+\)$"#, with: "", options: .regularExpression
+                )
+                if masteringKeys.contains(where: { role.contains($0) }) {
+                    mastering.append(name)
+                } else if cutKeys.contains(where: { role.contains($0) }) {
+                    cutting.append(name)
+                }
+            }
+            masteringEngineer = Array(NSOrderedSet(array: mastering)).compactMap { $0 as? String }.joined(separator: ", ")
+            cutBy = Array(NSOrderedSet(array: cutting)).compactMap { $0 as? String }.joined(separator: ", ")
+        }
+
+        // Companies: pressing plant, recording/mixing studios
+        var pressedAt = ""
+        var recordedAt = ""
+        var mixedAt = ""
+        if let companies = json["companies"] as? [[String: Any]] {
+            var pressed: [String] = []
+            var recorded: [String] = []
+            var mixed: [String] = []
+            for c in companies {
+                let entity = ((c["entity_type_name"] as? String) ?? "").lowercased()
+                let rawName = (c["name"] as? String) ?? ""
+                let name = rawName.replacingOccurrences(
+                    of: #"\s*\(\d+\)$"#, with: "", options: .regularExpression
+                )
+                guard !name.isEmpty else { continue }
+                switch entity {
+                case "pressed by": pressed.append(name)
+                case "recorded at": recorded.append(name)
+                case "mixed at": mixed.append(name)
+                default: break
+                }
+            }
+            pressedAt = Array(NSOrderedSet(array: pressed)).compactMap { $0 as? String }.joined(separator: ", ")
+            recordedAt = Array(NSOrderedSet(array: recorded)).compactMap { $0 as? String }.joined(separator: ", ")
+            mixedAt = Array(NSOrderedSet(array: mixed)).compactMap { $0 as? String }.joined(separator: ", ")
+        }
+
+        // Matrix / Runout identifiers
+        var matrixRunout = ""
+        if let ids = json["identifiers"] as? [[String: Any]] {
+            let matrixEntries = ids.compactMap { id -> String? in
+                guard let type = (id["type"] as? String)?.lowercased(),
+                      type.contains("matrix") || type.contains("runout"),
+                      let value = id["value"] as? String, !value.isEmpty else { return nil }
+                let desc = (id["description"] as? String) ?? ""
+                return desc.isEmpty ? value : "\(desc): \(value)"
+            }
+            matrixRunout = matrixEntries.joined(separator: " · ")
+        }
+
         let discogsURL: String
         if uri.hasPrefix("http") {
             discogsURL = uri
@@ -167,7 +256,10 @@ enum DiscogsService {
             label: label, catalogNumber: catalogNumber,
             formats: formats, genres: genres, styles: styles,
             notes: notes, imageURL: imageURL, url: discogsURL,
-            tracklist: tracklist, lowestPrice: lowestPrice
+            tracklist: tracklist, lowestPrice: lowestPrice,
+            masteringEngineer: masteringEngineer, cutBy: cutBy,
+            pressedAt: pressedAt, recordedAt: recordedAt,
+            mixedAt: mixedAt, matrixRunout: matrixRunout
         )
     }
 

@@ -9,6 +9,18 @@ struct DrPlayerApp: App {
         WindowGroup {
             PlayerView()
                 .frame(minWidth: 600, minHeight: 500)
+                .onOpenURL { url in
+                    guard url.scheme == "drplayer", url.host == "identify",
+                          let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                          let items = components.queryItems else { return }
+                    let param: (String) -> String = { key in
+                        items.first(where: { $0.name == key })?.value ?? ""
+                    }
+                    let albumPath = param("album")
+                    let discogsId = Int(param("discogsId")) ?? 0
+                    guard !albumPath.isEmpty, discogsId > 0 else { return }
+                    PressingStore.shared.certify(albumFullPath: albumPath, discogsId: discogsId)
+                }
         }
         .defaultSize(width: 900, height: 700)
         .commands {
@@ -35,8 +47,8 @@ struct DrPlayerApp: App {
     private var aboutOptions: [NSApplication.AboutPanelOptionKey: Any] {
         [
             .applicationName: "DrPlayer",
-            .applicationVersion: "1.8.2",
-            .version: "1",
+            .applicationVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown",
+            .version: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1",
             .credits: NSAttributedString(
                 string: "A music player for people who care about editions.\n\nBitperfect MPD playback with collector-grade metadata.\nBrowse by label, producer, engineer, edition and format.\n\nBuilt with SwiftUI, MPD, MusicBrainz, Discogs, Last.fm and Wikipedia.\n\nLicensed under GPLv3\nhttps://github.com/prietus/drplayer",
                 attributes: [

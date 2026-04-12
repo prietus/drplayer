@@ -8,6 +8,8 @@ struct Album: Identifiable {
     let date: String
     let originalDate: String
     let label: String
+    let catalogNumber: String
+    let country: String
     let musicbrainzAlbumId: String
     var genres: [String]
     var composers: [String] = []
