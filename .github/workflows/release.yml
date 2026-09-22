@@ -40,15 +40,12 @@ jobs:
 
       - name: Notarize and staple
         env:
-          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
           DMG="dist/DrPlayer-$VERSION.dmg"
-          echo "$ASC_KEY_P8" > "$RUNNER_TEMP/key.p8"
-          xcrun notarytool submit "$DMG" --key "$RUNNER_TEMP/key.p8" \
-            --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --wait
-          rm "$RUNNER_TEMP/key.p8"
+          xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" --team-id LFTD9T269J --wait
           xcrun stapler staple "$DMG"
           spctl --assess --type open --context context:primary-signature -v "$DMG"
           echo "DMG=$DMG" >> "$GITHUB_ENV"
