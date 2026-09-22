@@ -44,6 +44,14 @@ private struct GeneralTab: View {
     @State private var rebuildInProgress = false
     @State private var rebuildResult: RebuildResult?
     @State private var showRebuildConfirm = false
+    @State private var lastfmTest: KeyTest?
+    @State private var discogsTest: KeyTest?
+
+    private enum KeyTest: Equatable {
+        case testing
+        case valid
+        case invalid(String)
+    }
 
     private enum TestResult {
         case success
@@ -55,37 +63,37 @@ private struct GeneralTab: View {
         case failure(String)
     }
 
-    private var isRemote: Bool {
-        let h = mpdHost.lowercased()
-        return !h.isEmpty && h != "localhost" && h != "127.0.0.1" && h != "::1"
-    }
+    private var isRemote: Bool { AppSettings.isRemoteHost(mpdHost) }
 
     var body: some View {
         Form {
             Section("Music library") {
-                HStack {
-                    TextField("Local music path", text: $musicPath)
-                        .textFieldStyle(.roundedBorder)
-                    Button("Choose...") {
-                        chooseFolder()
-                    }
-                }
-                .onChange(of: musicPath) {
-                    AppSettings.shared.musicLibraryPath = musicPath
-                }
                 if isRemote {
-                    Text("Local path to the same music library that MPD uses on the remote server. Mount it via NFS or SMB for cover art, DR analysis and waveforms.")
+                    LibraryFoldersView(musicPath: $musicPath, host: mpdHost, port: UInt16(mpdPort) ?? 6600)
+                    Text("Where each library folder of the server is on this Mac (NFS/SMB mount). Used for cover art, DR analysis and waveforms.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                } else if let conf = detectedConf {
-                    Text("Auto-detected from \(conf)")
-                        .font(.caption)
-                        .foregroundStyle(.green)
                 } else {
-                    Text("music_directory from mpd.conf")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                    HStack {
+                        TextField("Local music path", text: $musicPath)
+                            .textFieldStyle(.roundedBorder)
+                        Button("Choose...") {
+                            chooseFolder()
+                        }
+                    }
+                    if let conf = detectedConf {
+                        Text("Auto-detected from \(conf)")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    } else {
+                        Text("music_directory from mpd.conf")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
+            }
+            .onChange(of: musicPath) {
+                AppSettings.shared.musicLibraryPath = musicPath
             }
 
             Section("MPD Connection") {
@@ -148,7 +156,20 @@ private struct GeneralTab: View {
                         .textFieldStyle(.roundedBorder)
                         .onChange(of: lastfmKey) {
                             AppSettings.shared.lastfmApiKey = lastfmKey
+                            lastfmTest = nil
                         }
+                }
+                HStack {
+                    Button("Test") {
+                        lastfmTest = .testing
+                        let key = lastfmKey.trimmingCharacters(in: .whitespaces)
+                        Task {
+                            let err = await LastFMService.validateKey(key)
+                            lastfmTest = err.map { .invalid($0) } ?? .valid
+                        }
+                    }
+                    .disabled(lastfmKey.isEmpty || lastfmTest == .testing)
+                    keyTestLabel(lastfmTest)
                 }
                 Text("Get at last.fm/api/account/create — enriches artist data")
                     .font(.caption)
@@ -163,6 +184,7 @@ private struct GeneralTab: View {
                         .textFieldStyle(.roundedBorder)
                         .onChange(of: discogsKey) {
                             AppSettings.shared.discogsKey = discogsKey
+                            discogsTest = nil
                         }
                 }
                 HStack {
@@ -172,7 +194,21 @@ private struct GeneralTab: View {
                         .textFieldStyle(.roundedBorder)
                         .onChange(of: discogsSecret) {
                             AppSettings.shared.discogsSecret = discogsSecret
+                            discogsTest = nil
                         }
+                }
+                HStack {
+                    Button("Test") {
+                        discogsTest = .testing
+                        let key = discogsKey.trimmingCharacters(in: .whitespaces)
+                        let secret = discogsSecret.trimmingCharacters(in: .whitespaces)
+                        Task {
+                            let err = await DiscogsService.validateCredentials(key: key, secret: secret)
+                            discogsTest = err.map { .invalid($0) } ?? .valid
+                        }
+                    }
+                    .disabled(discogsKey.isEmpty || discogsSecret.isEmpty || discogsTest == .testing)
+                    keyTestLabel(discogsTest)
                 }
                 Text("Get at discogs.com/settings/developers — physical edition data")
                     .font(.caption)
@@ -282,6 +318,22 @@ private struct GeneralTab: View {
             let detected = AppSettings.detectFromMPDConf()
             detectedConf = detected.confPath
             mpdConf = detected
+        }
+    }
+
+    @ViewBuilder
+    private func keyTestLabel(_ result: KeyTest?) -> some View {
+        switch result {
+        case .testing:
+            ProgressView().controlSize(.small)
+        case .valid:
+            Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
+            Text("Valid").font(.caption).foregroundColor(.green)
+        case .invalid(let msg):
+            Image(systemName: "xmark.circle.fill").foregroundColor(.red)
+            Text(msg).font(.caption).foregroundColor(.red).lineLimit(1)
+        case nil:
+            EmptyView()
         }
     }
 
@@ -428,6 +480,35 @@ private struct MusicSourcesTab: View {
     @State private var errorMessage: String?
 
     var body: some View {
+        if AppSettings.shared.isRemoteMPD {
+            remoteNotice
+        } else {
+            localSources
+        }
+    }
+
+    private var remoteNotice: some View {
+        Form {
+            Section("Music sources") {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "server.rack")
+                        .foregroundStyle(.blue)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("MPD is running on \(AppSettings.shared.mpdHost)")
+                            .fontWeight(.medium)
+                        Text("Music sources are managed on the server, in its music_directory. Symlinks created on this Mac are not visible to a remote MPD.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+
+    private var localSources: some View {
         Form {
             Section("Music sources") {
                 if sources.isEmpty {

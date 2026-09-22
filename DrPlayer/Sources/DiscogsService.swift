@@ -50,6 +50,24 @@ enum DiscogsService {
 
     private static var isConfigured: Bool { !key.isEmpty && !secret.isEmpty }
 
+    /// Validate consumer key/secret with a minimal search. Returns nil if valid, else an error message.
+    static func validateCredentials(key: String, secret: String) async -> String? {
+        guard !key.isEmpty, !secret.isEmpty else { return "Key and secret required" }
+        let k = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let s = secret.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        guard let url = URL(string: "\(baseURL)/database/search?q=test&per_page=1&key=\(k)&secret=\(s)") else { return "Invalid credentials" }
+        var request = URLRequest(url: url)
+        request.setValue("DrPlayer/1.0", forHTTPHeaderField: "User-Agent")
+        guard let (_, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse else { return "Network error" }
+        switch http.statusCode {
+        case 200: return nil
+        case 401: return "Invalid key or secret"
+        case 429: return "Rate limited — try again later"
+        default: return "HTTP \(http.statusCode)"
+        }
+    }
+
     /// Search by catalog number (most precise for pressing identification)
     static func searchByCatalog(_ catno: String, country: String? = nil, label: String? = nil, format: String? = nil) async -> DiscogsRelease? {
         guard isConfigured else { return nil }

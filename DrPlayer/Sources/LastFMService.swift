@@ -19,6 +19,17 @@ enum LastFMService {
 
     private static let baseURL = "https://ws.audioscrobbler.com/2.0"
 
+    /// Validate an API key with a lightweight call. Returns nil if valid, else an error message.
+    static func validateKey(_ key: String) async -> String? {
+        guard !key.isEmpty else { return "Empty key" }
+        let encodedKey = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        guard let url = URL(string: "\(baseURL)?method=artist.getinfo&artist=Radiohead&api_key=\(encodedKey)&format=json") else { return "Invalid key" }
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return "Network error" }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return "Unexpected response" }
+        if let message = json["message"] as? String, json["error"] != nil { return message }
+        return json["artist"] != nil ? nil : "Unexpected response"
+    }
+
     /// Fetch similar artists via artist.getSimilar.
     /// Returns [lowercased artist name: match score 0-1], up to `limit` entries.
     static func fetchSimilarArtists(name: String, limit: Int = 50) async -> [String: Double] {

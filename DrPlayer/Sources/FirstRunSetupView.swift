@@ -19,6 +19,13 @@ struct FirstRunSetupView: View {
         case failure(String)
     }
 
+    @State private var isRemote: Bool
+
+    /// A remote MPD doesn't need a local mpd binary
+    private var depsOK: Bool {
+        isRemote ? deps.ffmpeg != nil && deps.ffprobe != nil : deps.allSatisfied
+    }
+
     init(onComplete: @escaping () -> Void) {
         self.onComplete = onComplete
         let detected = AppSettings.detectFromMPDConf()
@@ -27,6 +34,7 @@ struct FirstRunSetupView: View {
         _mpdHost = State(initialValue: detected.host ?? AppSettings.shared.mpdHost)
         _mpdPort = State(initialValue: String(detected.port ?? AppSettings.shared.mpdPort))
         _detectedConf = State(initialValue: detected.confPath)
+        _isRemote = State(initialValue: AppSettings.isRemoteHost(detected.host ?? AppSettings.shared.mpdHost))
         _deps = State(initialValue: deps)
     }
 
@@ -44,14 +52,20 @@ struct FirstRunSetupView: View {
             .padding(.bottom, 12)
 
             Form {
+                locationSection
+
                 // Step 1: Dependencies
                 dependenciesSection
 
-                // Step 2: mpd.conf
-                if deps.allSatisfied {
-                    mpdConfSection
-                    connectionSection
-                    sourcesSection
+                if depsOK {
+                    if isRemote {
+                        connectionSection
+                        remoteLibrarySection
+                    } else {
+                        mpdConfSection
+                        connectionSection
+                        sourcesSection
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -77,8 +91,8 @@ struct FirstRunSetupView: View {
 
                 Spacer()
 
-                if deps.allSatisfied {
-                    if sources.isEmpty && detectedConf != nil {
+                if depsOK {
+                    if !isRemote && sources.isEmpty && detectedConf != nil {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.orange)
                         Text("No music sources added")
@@ -95,7 +109,8 @@ struct FirstRunSetupView: View {
                         saveAndComplete()
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(musicPath.isEmpty)
+                    // Remote: library mount is optional (playback works without it)
+                    .disabled(isRemote ? !AppSettings.isRemoteHost(mpdHost) : musicPath.isEmpty)
                 }
             }
             .padding()
@@ -105,15 +120,56 @@ struct FirstRunSetupView: View {
         .onChange(of: musicPath) { refreshSources() }
     }
 
+    // MARK: - Location Section
+
+    private var locationSection: some View {
+        Section("1. Where does MPD run?") {
+            Picker("MPD", selection: $isRemote) {
+                Text("On this Mac").tag(false)
+                Text("On another machine").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .onChange(of: isRemote) {
+                testResult = nil
+                if isRemote {
+                    if !AppSettings.isRemoteHost(mpdHost) { mpdHost = "" }
+                    musicPath = ""
+                } else {
+                    mpdHost = "localhost"
+                    musicPath = AppSettings.detectFromMPDConf().musicDir ?? NSString(string: "~/.mpd/music").expandingTildeInPath
+                }
+            }
+            Text(isRemote
+                 ? "MPD runs on a server (NAS, Raspberry Pi…). Mount its music folder on this Mac for cover art, DR analysis and waveforms."
+                 : "MPD runs locally on this Mac and plays your music directly.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     // MARK: - Dependencies Section
 
     private var dependenciesSection: some View {
-        Section("1. Prerequisites") {
-            depRow("mpd", path: deps.mpd)
+        Section("2. Prerequisites") {
+            if isRemote && deps.mpd == nil {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.secondary)
+                    Text("mpd")
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text("not needed (remote server)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                depRow("mpd", path: deps.mpd)
+            }
             depRow("ffmpeg", path: deps.ffmpeg)
             depRow("ffprobe", path: deps.ffprobe)
 
-            if !deps.allSatisfied {
+            if !depsOK {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Install missing dependencies with Homebrew:")
                         .font(.caption)
@@ -157,7 +213,7 @@ struct FirstRunSetupView: View {
     // MARK: - mpd.conf Section
 
     private var mpdConfSection: some View {
-        Section("2. MPD Configuration") {
+        Section("3. MPD Configuration") {
             if let conf = detectedConf {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
@@ -214,9 +270,9 @@ struct FirstRunSetupView: View {
     // MARK: - Connection Section
 
     private var connectionSection: some View {
-        Section("3. Connection") {
+        Section(isRemote ? "3. Connection" : "4. Connection") {
             HStack {
-                TextField("Host", text: $mpdHost)
+                TextField(isRemote ? "Server IP or hostname" : "Host", text: $mpdHost)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 200)
                 TextField("Port", text: $mpdPort)
@@ -224,7 +280,7 @@ struct FirstRunSetupView: View {
                     .frame(maxWidth: 80)
             }
 
-            if detectedConf != nil {
+            if detectedConf != nil && !isRemote {
                 HStack {
                     TextField("music_directory", text: $musicPath)
                         .textFieldStyle(.roundedBorder)
@@ -236,10 +292,21 @@ struct FirstRunSetupView: View {
         }
     }
 
+    // MARK: - Remote Library Section
+
+    private var remoteLibrarySection: some View {
+        Section("4. Library folders on this Mac") {
+            LibraryFoldersView(musicPath: $musicPath, host: mpdHost, port: UInt16(mpdPort) ?? 6600)
+            Text("Where each library folder of the server is on this Mac (NFS/SMB mount). Optional — used for cover art, DR analysis and waveforms. Detect all searches your network mounts.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
     // MARK: - Sources Section
 
     private var sourcesSection: some View {
-        Section("4. Music sources") {
+        Section("5. Music sources") {
             if sources.isEmpty {
                 Text("No sources. You can add them now or later in Settings.")
                     .font(.caption)
@@ -372,7 +439,7 @@ struct FirstRunSetupView: View {
         settings.hasCompletedSetup = true
 
         // Trigger MPD database update if sources were added
-        if !sources.isEmpty {
+        if !isRemote && !sources.isEmpty {
             let client = MPDClient(host: mpdHost, port: UInt16(mpdPort) ?? 6600)
             Task { try? await client.command("update") }
         }

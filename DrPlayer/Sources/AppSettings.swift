@@ -50,14 +50,16 @@ class AppSettings {
         let defaults = UserDefaults.standard
         let detected = Self.detectFromMPDConf()
 
-        // Always prefer music_directory from mpd.conf (source of truth for MPD)
-        self.musicLibraryPath = detected.musicDir
-            ?? defaults.string(forKey: "musicLibraryPath")
-            ?? NSString(string: "~/.mpd/music").expandingTildeInPath as String
         // User-set host/port (from Settings) takes priority over mpd.conf
-        self.mpdHost = defaults.string(forKey: "mpdHost")
+        let host = defaults.string(forKey: "mpdHost")
             ?? detected.host
             ?? "localhost"
+        self.mpdHost = host
+        let savedPath = defaults.string(forKey: "musicLibraryPath")
+        // Local MPD: music_directory from mpd.conf is the source of truth.
+        // Remote MPD: the local mpd.conf is irrelevant; use the mount point the user chose.
+        self.musicLibraryPath = (Self.isRemoteHost(host) ? savedPath ?? detected.musicDir : detected.musicDir ?? savedPath)
+            ?? NSString(string: "~/.mpd/music").expandingTildeInPath as String
         self.mpdPort = { let p = defaults.integer(forKey: "mpdPort"); return p > 0 ? p : nil }()
             ?? detected.port
             ?? 6600
@@ -68,6 +70,14 @@ class AppSettings {
         self.discogsSecret = defaults.string(forKey: "discogsSecret") ?? ""
         self.sampleRateDeviceUID = defaults.string(forKey: "sampleRateDeviceUID") ?? ""
     }
+
+    /// Whether a host points to another machine (not this Mac)
+    static func isRemoteHost(_ host: String) -> Bool {
+        let h = host.lowercased()
+        return !h.isEmpty && h != "localhost" && h != "127.0.0.1" && h != "::1"
+    }
+
+    var isRemoteMPD: Bool { Self.isRemoteHost(mpdHost) }
 
     /// Resolved, symlink-aware music base path
     var resolvedMusicPath: String {
