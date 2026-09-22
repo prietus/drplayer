@@ -1,0 +1,78 @@
+name: Release
+
+# Push a tag like v1.11.0 to build, sign, notarize, publish a GitHub
+# Release and bump the Homebrew cask in prietus/homebrew-drplayer.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: macos-26
+    permissions:
+      contents: write
+    env:
+      SIGN_IDENTITY: "Developer ID Application: carlos prieto ortiz (LFTD9T269J)"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version from tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Import signing certificate
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/signing.keychain-db"
+          KC_PASS="$(uuidgen)"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KC_PASS" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KC_PASS" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KC_PASS" "$KC"
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+
+      - name: Build, sign and package
+        run: scripts/build-app.sh "$VERSION"
+
+      - name: Notarize and staple
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          DMG="dist/DrPlayer-$VERSION.dmg"
+          echo "$ASC_KEY_P8" > "$RUNNER_TEMP/key.p8"
+          xcrun notarytool submit "$DMG" --key "$RUNNER_TEMP/key.p8" \
+            --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --wait
+          rm "$RUNNER_TEMP/key.p8"
+          xcrun stapler staple "$DMG"
+          spctl --assess --type open --context context:primary-signature -v "$DMG"
+          echo "DMG=$DMG" >> "$GITHUB_ENV"
+          echo "SHA256=$(shasum -a 256 "$DMG" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "$DMG" --title "DrPlayer $VERSION" --generate-notes
+
+      - name: Bump Homebrew cask
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          git clone "https://x-access-token:$TAP_TOKEN@github.com/prietus/homebrew-drplayer.git" tap
+          cd tap
+          sed -i '' -E \
+            -e "s/^  version \".*\"/  version \"$VERSION\"/" \
+            -e "s/^  sha256 \".*\"/  sha256 \"$SHA256\"/" \
+            Casks/drplayer.rb
+          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
+            commit -am "drplayer $VERSION"
+          git push
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true

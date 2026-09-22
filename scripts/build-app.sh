@@ -1,111 +1,52 @@
 #!/bin/bash
-set -e
+# Build DrPlayer.app (universal) and a DMG in dist/.
+#
+# Usage: scripts/build-app.sh VERSION
+#
+# Signs with SIGN_IDENTITY if set (Developer ID, hardened runtime),
+# otherwise ad-hoc. Notarization is a separate step (see
+# .github/workflows/release.yml).
+set -euo pipefail
 
-VERSION="${1:-1.0.0}"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$SCRIPT_DIR/.."
-BUILD_DIR="$PROJECT_DIR/DrPlayer"
-DIST_DIR="$PROJECT_DIR/dist"
+VERSION="${1:?Usage: scripts/build-app.sh VERSION}"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+DIST_DIR="${DIST_DIR:-$PROJECT_DIR/dist}"
 APP_DIR="$DIST_DIR/DrPlayer.app"
-
-echo "Building DrPlayer v$VERSION..."
-
-# Build release binary
-cd "$BUILD_DIR"
-swift build -c release
-
-# Create app bundle
-rm -rf "$APP_DIR"
-mkdir -p "$APP_DIR/Contents/MacOS"
-mkdir -p "$APP_DIR/Contents/Resources"
-
-cp .build/release/DrPlayer "$APP_DIR/Contents/MacOS/"
-
-# Info.plist
-cat > "$APP_DIR/Contents/Info.plist" << PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleName</key>
-    <string>DrPlayer</string>
-    <key>CFBundleDisplayName</key>
-    <string>DrPlayer</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.drplayer.app</string>
-    <key>CFBundleVersion</key>
-    <string>$VERSION</string>
-    <key>CFBundleShortVersionString</key>
-    <string>$VERSION</string>
-    <key>CFBundleExecutable</key>
-    <string>DrPlayer</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>14.0</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
-    <key>LSApplicationCategoryType</key>
-    <string>public.app-category.music</string>
-    <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSAllowsArbitraryLoads</key>
-        <true/>
-    </dict>
-    <key>CFBundleURLTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleURLName</key>
-            <string>com.drplayer.identify</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <string>drplayer</string>
-            </array>
-        </dict>
-    </array>
-    <key>LSApplicationQueriesSchemes</key>
-    <array>
-        <string>obiscanner</string>
-    </array>
-</dict>
-</plist>
-PLIST
-
-# Copy icon if exists
-if [ -f "$PROJECT_DIR/DrPlayer/Sources/Resources/AppIcon.icns" ]; then
-    cp "$PROJECT_DIR/DrPlayer/Sources/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/"
-elif [ -f "$PROJECT_DIR/dist/AppIcon.icns" ]; then
-    cp "$PROJECT_DIR/dist/AppIcon.icns" "$APP_DIR/Contents/Resources/"
-fi
-
-# Code sign with Developer ID (or ad-hoc if not available)
-SIGN_IDENTITY="Developer ID Application: carlos prieto ortiz (LFTD9T269J)"
-if security find-identity -v -p codesigning | grep -q "$SIGN_IDENTITY"; then
-    codesign --deep --force --sign "$SIGN_IDENTITY" --options runtime "$APP_DIR"
-    echo "Signed with Developer ID"
-else
-    codesign --deep --force --sign - "$APP_DIR"
-    echo "Ad-hoc signed (Developer ID not found)"
-fi
-
-# Create DMG
 DMG_PATH="$DIST_DIR/DrPlayer-$VERSION.dmg"
+ARCHS=(--arch arm64 --arch x86_64)
+
+echo "==> Building DrPlayer v$VERSION (universal)..."
+cd "$PROJECT_DIR/DrPlayer"
+swift package clean
+swift build -c release "${ARCHS[@]}"
+BIN_DIR="$(swift build -c release "${ARCHS[@]}" --show-bin-path)"
+
+echo "==> Assembling .app..."
+rm -rf "$APP_DIR"
+mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
+cp "$BIN_DIR/DrPlayer" "$APP_DIR/Contents/MacOS/"
+cp -R "$BIN_DIR/DrPlayer_DrPlayer.bundle" "$APP_DIR/Contents/Resources/"
+cp "$PROJECT_DIR/packaging/AppIcon.icns" "$APP_DIR/Contents/Resources/"
+sed "s/__VERSION__/$VERSION/g" "$PROJECT_DIR/packaging/Info.plist" > "$APP_DIR/Contents/Info.plist"
+
+echo "==> Signing..."
+if [ -n "${SIGN_IDENTITY:-}" ]; then
+    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" \
+        "$APP_DIR/Contents/Resources/DrPlayer_DrPlayer.bundle"
+    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP_DIR"
+    codesign --verify --strict --verbose=2 "$APP_DIR"
+else
+    codesign --force --deep --sign - "$APP_DIR"
+    echo "    (ad-hoc — set SIGN_IDENTITY for a Developer ID signature)"
+fi
+
+echo "==> Creating DMG..."
 rm -f "$DMG_PATH"
 hdiutil create -volname "DrPlayer" -srcfolder "$APP_DIR" -ov -format UDZO "$DMG_PATH"
+if [ -n "${SIGN_IDENTITY:-}" ]; then
+    codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG_PATH"
+fi
 
 echo ""
-echo "Done!"
-echo "  App: $APP_DIR"
-echo "  DMG: $DMG_PATH"
-echo "  Size: $(du -h "$DMG_PATH" | cut -f1)"
-echo ""
-echo "To install: open the DMG and drag DrPlayer to /Applications"
-echo ""
-echo "Note: unsigned app — users need to right-click → Open on first launch"
-echo "For signed builds, get Apple Developer Account and use:"
-echo "  codesign --deep --force --sign 'Developer ID Application: ...' DrPlayer.app"
-echo "  xcrun notarytool submit DrPlayer.dmg --apple-id ... --team-id ... --password ..."
+echo "App: $APP_DIR"
+echo "DMG: $DMG_PATH"
