@@ -249,7 +249,20 @@ struct AlbumDetailView: View {
                         Button {
                             Task {
                                 CoverArtService.clearCache(artist: album.artist, album: album.title)
-                                cover = await album.coverImageAsync()
+                                CoverCache.shared.set(album.folder, image: nil)
+                                CoverCache.shared.invalidate(album.folder)
+                                let img = await album.coverImageAsync()
+                                cover = img
+                                if let img {
+                                    if coverImages.isEmpty {
+                                        coverImages = [img]
+                                        artworkPaths = [""]
+                                        artworkCount = 1
+                                        coverIndex = 0
+                                    } else {
+                                        coverImages[0] = img
+                                    }
+                                }
                             }
                         } label: {
                             Label("Retry cover art", systemImage: "photo")
@@ -310,7 +323,15 @@ struct AlbumDetailView: View {
                                 Button {
                                     Task {
                                         CoverArtService.clearCache(artist: album.artist, album: album.title)
-                                        cover = await album.coverImageAsync()
+                                        CoverCache.shared.invalidate(album.folder)
+                                        let img = await album.coverImageAsync()
+                                        cover = img
+                                        if let img {
+                                            coverImages = [img]
+                                            artworkPaths = [""]
+                                            artworkCount = 1
+                                            coverIndex = 0
+                                        }
                                     }
                                 } label: {
                                     Label("Retry", systemImage: "arrow.trianglehead.clockwise")

@@ -21,4 +21,12 @@ final class CoverCache {
         defer { lock.unlock() }
         cache[folder] = image
     }
+
+    /// Remove the entry entirely so the next lookup re-runs disk + online fetch.
+    /// Different from `set(folder, image: nil)` which caches a negative result.
+    func invalidate(_ folder: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        cache.removeValue(forKey: folder)
+    }
 }

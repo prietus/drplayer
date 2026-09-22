@@ -539,7 +539,9 @@ class PlayerViewModel {
     private func generateRadioQueue() async {
         guard let context = radioContext else { return }
         let currentFiles = Set(playlist.map(\.file))
-        let tracks = RadioEngine.generate(from: context, allAlbums: albums, count: 20, excludeFiles: currentFiles)
+        // Fetch Last.fm similar artists for the seed — becomes the dominant scoring signal
+        let similar = await LastFMService.fetchSimilarArtists(name: context.artist)
+        let tracks = RadioEngine.generate(from: context, allAlbums: albums, count: 20, excludeFiles: currentFiles, similarArtists: similar)
 
         for track in tracks {
             try? await mpd.command("add \"\(track.file)\"")

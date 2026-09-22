@@ -19,6 +19,44 @@ enum LastFMService {
 
     private static let baseURL = "https://ws.audioscrobbler.com/2.0"
 
+    /// Fetch similar artists via artist.getSimilar.
+    /// Returns [lowercased artist name: match score 0-1], up to `limit` entries.
+    static func fetchSimilarArtists(name: String, limit: Int = 50) async -> [String: Double] {
+        guard !apiKey.isEmpty, !name.isEmpty else { return [:] }
+
+        let cacheKey = "lfm_similar_\(name.lowercased())_\(limit)"
+        if let cached = MetadataCache.get(cacheKey),
+           let parsed = parseSimilar(data: cached) {
+            return parsed
+        }
+
+        let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlStr = "\(baseURL)?method=artist.getsimilar&artist=\(encoded)&limit=\(limit)&autocorrect=1&api_key=\(apiKey)&format=json"
+        guard let url = URL(string: urlStr) else { return [:] }
+
+        guard let (data, response) = try? await URLSession.shared.data(from: url),
+              let http = response as? HTTPURLResponse, http.statusCode == 200,
+              let parsed = parseSimilar(data: data) else {
+            return [:]
+        }
+
+        MetadataCache.set(cacheKey, data: data)
+        return parsed
+    }
+
+    private static func parseSimilar(data: Data) -> [String: Double]? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let simObj = json["similarartists"] as? [String: Any],
+              let list = simObj["artist"] as? [[String: Any]] else { return nil }
+        var result: [String: Double] = [:]
+        for item in list {
+            guard let name = item["name"] as? String else { continue }
+            let match = (item["match"] as? String).flatMap(Double.init) ?? 0
+            result[name.lowercased()] = match
+        }
+        return result
+    }
+
     /// Fetch tags for an album (returns genre-like tags)
     static func fetchAlbumTags(artist: String, album: String) async -> [String] {
         guard !apiKey.isEmpty else { return [] }
