@@ -7,3 +7,19 @@ xcuserdata/
 DerivedData/
 .DS_Store
 release.sh
+
+# Local notes and assistant context (contain server details)
+CLAUDE.md
+
+# Signing / notarization credentials — never commit
+*.p12
+*.p8
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+.env
+.env.*
+
+# Build artifacts
+*.dmg
