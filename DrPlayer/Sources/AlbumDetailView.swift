@@ -212,15 +212,18 @@ struct AlbumDetailView: View {
 
                     Menu {
                         Button {
+                            guard let app = Self.drtaggerURL else { return }
                             let path = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
                             NSWorkspace.shared.open(
                                 [URL(fileURLWithPath: path)],
-                                withApplicationAt: URL(fileURLWithPath: "/Applications/MusicBrainz Picard.app"),
+                                withApplicationAt: app,
                                 configuration: NSWorkspace.OpenConfiguration()
                             )
                         } label: {
-                            Label("Open in Picard", systemImage: "tag")
+                            Label("Open in drtagger", systemImage: "tag")
                         }
+                        .disabled(Self.drtaggerURL == nil)
+                        .help(Self.drtaggerURL == nil ? "drtagger is not installed" : "Identify and tag this album in drtagger")
 
                         Button {
                             let path = (AppSettings.shared.resolveFilePath(album.folder) as NSString).resolvingSymlinksInPath
@@ -1040,6 +1043,11 @@ struct AlbumDetailView: View {
         cleaned = cleaned.replacingOccurrences(of: #"^\(C\)\s*"#, with: "", options: .regularExpression)
         cleaned = cleaned.replacingOccurrences(of: #"^[℗©]\s*"#, with: "", options: .regularExpression)
         return cleaned.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// drtagger, located by bundle ID wherever it is installed
+    private static var drtaggerURL: URL? {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: "us.priet.drtagger-mac")
     }
 
     /// Open paths in DrDoctor using `open -a` (single invocation, no double-launch)
