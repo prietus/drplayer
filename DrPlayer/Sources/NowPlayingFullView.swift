@@ -347,6 +347,12 @@ struct NowPlayingFullView: View {
 
             // Transport
             HStack(spacing: 24) {
+                Button { Task { await vm.toggleShuffle() } } label: {
+                    Image(systemName: "shuffle")
+                        .font(.body)
+                        .foregroundStyle(.white.opacity(vm.shuffle ? 1 : 0.35))
+                }
+                .help(vm.shuffle ? "Shuffle: on" : "Shuffle: off")
                 Button { Task { await vm.prev() } } label: {
                     Image(systemName: "backward.fill")
                 }
@@ -357,6 +363,12 @@ struct NowPlayingFullView: View {
                 Button { Task { await vm.next() } } label: {
                     Image(systemName: "forward.fill")
                 }
+                Button { Task { await vm.cycleRepeat() } } label: {
+                    Image(systemName: vm.repeatMode.systemImage)
+                        .font(.body)
+                        .foregroundStyle(.white.opacity(vm.repeatMode == .off ? 0.35 : 1))
+                }
+                .help(vm.repeatMode.help)
             }
             .font(.title2)
             .foregroundStyle(.white.opacity(0.8))

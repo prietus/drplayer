@@ -25,6 +25,35 @@ struct Track: Identifiable {
     var dr: Int? = nil
 }
 
+/// Repeat modes backed by MPD's `repeat` and `single` flags
+enum RepeatMode {
+    case off    // repeat 0, single 0
+    case queue  // repeat 1, single 0 — the whole queue (the album, when playing one)
+    case track  // repeat 1, single 1
+
+    init(repeat: Bool, single: Bool) {
+        self = !`repeat` ? .off : (single ? .track : .queue)
+    }
+
+    var next: RepeatMode {
+        switch self {
+        case .off: return .queue
+        case .queue: return .track
+        case .track: return .off
+        }
+    }
+
+    var systemImage: String { self == .track ? "repeat.1" : "repeat" }
+
+    var help: String {
+        switch self {
+        case .off: return "Repeat: off"
+        case .queue: return "Repeat: queue"
+        case .track: return "Repeat: track"
+        }
+    }
+}
+
 @Observable
 class PlayerViewModel {
     /// Weak reference for app-level access (mini player, menu commands)
@@ -38,6 +67,8 @@ class PlayerViewModel {
     var playlist: [Track] = []
     var albums: [Album] = []
     var currentPos: Int? = nil
+    var repeatMode: RepeatMode = .off
+    var shuffle = false
     var connected = false
     var error: String? = nil
     var audioFormat = ""
@@ -186,6 +217,8 @@ class PlayerViewModel {
                 self.elapsed = Double(status["elapsed"] ?? "") ?? 0
                 self.duration = Double(status["duration"] ?? "") ?? 0
                 self.bitrate = status["bitrate"] ?? ""
+                self.repeatMode = RepeatMode(repeat: status["repeat"] == "1", single: status["single"] == "1")
+                self.shuffle = status["random"] == "1"
                 // DR14: check cache or compute in background
                 if !currentFile.isEmpty {
                     self.analyzeDR14(for: currentFile)
@@ -365,6 +398,24 @@ class PlayerViewModel {
 
     func prev() async {
         try? await mpd.command("previous")
+        await refresh()
+    }
+
+    /// Off → queue → track → off
+    func cycleRepeat() async {
+        let mode = repeatMode.next
+        repeatMode = mode
+        switch mode {
+        case .off: try? await mpd.commandList(["repeat 0", "single 0"])
+        case .queue: try? await mpd.commandList(["repeat 1", "single 0"])
+        case .track: try? await mpd.commandList(["repeat 1", "single 1"])
+        }
+        await refresh()
+    }
+
+    func toggleShuffle() async {
+        shuffle.toggle()
+        try? await mpd.command("random \(shuffle ? 1 : 0)")
         await refresh()
     }
 

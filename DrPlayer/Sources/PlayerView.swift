@@ -579,6 +579,12 @@ struct NowPlayingBar: View {
 
             // Transport controls
             HStack(spacing: 20) {
+                Button { Task { await vm.toggleShuffle() } } label: {
+                    Image(systemName: "shuffle")
+                        .font(.body)
+                        .foregroundColor(vm.shuffle ? ThemeManager.shared.current.accent : .secondary)
+                }
+                .help(vm.shuffle ? "Shuffle: on" : "Shuffle: off")
                 Button { Task { await vm.prev() } } label: {
                     Image(systemName: "backward.fill")
                 }
@@ -592,6 +598,12 @@ struct NowPlayingBar: View {
                 Button { Task { await vm.next() } } label: {
                     Image(systemName: "forward.fill")
                 }
+                Button { Task { await vm.cycleRepeat() } } label: {
+                    Image(systemName: vm.repeatMode.systemImage)
+                        .font(.body)
+                        .foregroundColor(vm.repeatMode == .off ? .secondary : ThemeManager.shared.current.accent)
+                }
+                .help(vm.repeatMode.help)
 
                 SignalPathIndicator(vm: vm, compact: true)
             }
