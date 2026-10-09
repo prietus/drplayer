@@ -96,6 +96,8 @@ class PlayerViewModel {
     private var mpd: MPDClient
     private var timer: Timer?
     private var outputPollCounter = 0
+    /// MPD `db_update` timestamp seen at the last library load
+    private var lastDBUpdate: String?
     private var lastSampleRate: Double = 0
     private var isSwitchingRate = false
 
@@ -267,6 +269,7 @@ class PlayerViewModel {
             outputPollCounter += 1
             if outputPollCounter % 10 == 1 {
                 await refreshOutputs()
+                await reloadLibraryIfDatabaseChanged()
             }
 
             // Auto-continue: when queue ends (not user-stopped), start radio
@@ -305,9 +308,21 @@ class PlayerViewModel {
         } catch {}
     }
 
-    func loadLibrary() async {
-        try? await mpd.command("update")
-        try? await Task.sleep(for: .seconds(2))
+    /// Reload the library when MPD finished a database update (new albums
+    /// added on the server), so they show up without restarting the app.
+    private func reloadLibraryIfDatabaseChanged() async {
+        guard let stats = try? await mpd.stats(), let dbUpdate = stats["db_update"] else { return }
+        defer { lastDBUpdate = dbUpdate }
+        guard let last = lastDBUpdate, last != dbUpdate else { return }
+        // No `update` here: that would change db_update again and loop
+        await loadLibrary(triggerUpdate: false)
+    }
+
+    func loadLibrary(triggerUpdate: Bool = true) async {
+        if triggerUpdate {
+            try? await mpd.command("update")
+            try? await Task.sleep(for: .seconds(2))
+        }
 
         // Fetch all tracks from MPD database
         do {

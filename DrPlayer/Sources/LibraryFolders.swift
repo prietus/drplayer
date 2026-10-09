@@ -8,9 +8,18 @@ enum LibraryFolders {
     static let root = NSString(string: "~/.drplayer/library").expandingTildeInPath
 
     struct Folder: Identifiable {
-        let name: String     // top-level folder in MPD
-        let sample: String   // MPD-relative path of one file inside it
+        let name: String       // top-level folder in MPD
+        let sample: String     // MPD-relative path of one file inside it
+        let entries: [String]  // names directly inside it, as MPD sees them
         var id: String { name }
+    }
+
+    /// How many of MPD's entries for a folder exist at a local path
+    struct Coverage {
+        let found: Int
+        let total: Int
+        var complete: Bool { found == total }
+        var missing: Int { total - found }
     }
 
     // MARK: MPD
@@ -22,7 +31,10 @@ enum LibraryFolders {
         var folders: [Folder] = []
         for dir in lines.compactMap({ value(of: "directory", in: $0) }) {
             if let file = await firstFile(in: dir, client: client, depth: 0) {
-                folders.append(Folder(name: dir, sample: file))
+                let entries = (try? await client.send("lsinfo \"\(escape(dir))\""))?
+                    .compactMap { value(of: "directory", in: $0) ?? value(of: "file", in: $0) }
+                    .map { ($0 as NSString).lastPathComponent } ?? []
+                folders.append(Folder(name: dir, sample: file, entries: entries))
             }
         }
         return folders
@@ -30,8 +42,7 @@ enum LibraryFolders {
 
     private static func firstFile(in dir: String, client: MPDClient, depth: Int) async -> String? {
         guard depth < 6 else { return nil }
-        let escaped = dir.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-        guard let lines = try? await client.send("lsinfo \"\(escaped)\"") else { return nil }
+        guard let lines = try? await client.send("lsinfo \"\(escape(dir))\"") else { return nil }
         if let file = lines.lazy.compactMap({ value(of: "file", in: $0) }).first {
             return file
         }
@@ -41,6 +52,10 @@ enum LibraryFolders {
             }
         }
         return nil
+    }
+
+    private static func escape(_ s: String) -> String {
+        s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
     }
 
     private static func value(of key: String, in line: String) -> String? {
@@ -70,6 +85,15 @@ enum LibraryFolders {
         let rest = folder.sample.dropFirst(folder.name.count + 1)
         let path = ("\(localPath)/\(rest)" as NSString).resolvingSymlinksInPath
         return FileManager.default.fileExists(atPath: path)
+    }
+
+    /// Compare MPD's entries for `folder` with what is at `localPath`.
+    /// Catches a stale copy that has older albums but not the new ones.
+    static func coverage(_ folder: Folder, localPath: String) -> Coverage {
+        let resolved = (localPath as NSString).resolvingSymlinksInPath
+        let local = Set((try? FileManager.default.contentsOfDirectory(atPath: resolved)) ?? [])
+        let found = folder.entries.filter { local.contains($0) }.count
+        return Coverage(found: found, total: folder.entries.count)
     }
 
     // MARK: Detection
@@ -124,18 +148,24 @@ enum LibraryFolders {
         return all
     }
 
-    /// Find each folder among network mounts. Prefers a subfolder with the
-    /// same name; also accepts a mount that is the folder itself.
+    /// Find each folder among network mounts: of the places that contain
+    /// its sample file, pick the one with the most of MPD's entries (a
+    /// complete copy beats a stale one). Same-name subfolders win ties.
     static func detect(_ folders: [Folder]) -> [String: String] {
         guard !folders.isEmpty else { return [:] }
         let dirs = searchDirs()
         var found: [String: String] = [:]
         for folder in folders {
-            if let dir = dirs.first(where: { matches(folder, localPath: "\($0)/\(folder.name)") }) {
-                found[folder.name] = "\(dir)/\(folder.name)"
-            } else if let dir = dirs.first(where: { matches(folder, localPath: $0) }) {
-                found[folder.name] = dir
+            let candidates = dirs.map { "\($0)/\(folder.name)" } + dirs
+            var best: (path: String, found: Int)?
+            for path in candidates where matches(folder, localPath: path) {
+                let c = coverage(folder, localPath: path)
+                if best == nil || c.found > best!.found {
+                    best = (path, c.found)
+                }
+                if c.complete { break }
             }
+            if let best { found[folder.name] = best.path }
         }
         return found
     }
@@ -150,7 +180,13 @@ struct LibraryFoldersView: View {
 
     @State private var folders: [LibraryFolders.Folder] = []
     @State private var targets: [String: String] = [:]
-    @State private var valid: [String: Bool] = [:]
+    @State private var status: [String: FolderStatus] = [:]
+
+    private enum FolderStatus: Equatable {
+        case complete
+        case incomplete(missing: Int, total: Int)
+        case wrong
+    }
     @State private var phase: Phase = .loading
     @State private var detectMessage: String?
 
@@ -214,11 +250,17 @@ struct LibraryFoldersView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer()
-            switch valid[folder.name] {
-            case true?:
+            switch status[folder.name] {
+            case .complete?:
                 Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
-                    .help("Files found")
-            case false?:
+                    .help("All of MPD's \(folder.name) folders are here")
+            case .incomplete(let missing, let total)?:
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange)
+                    Text("\(missing) of \(total) missing").font(.caption).foregroundColor(.orange)
+                }
+                .help("This copy is missing albums MPD has (e.g. recently added). Cover art, DR and waveforms won't work for those. Choose the folder MPD actually reads, or use Detect all.")
+            case .wrong?:
                 Image(systemName: "xmark.circle.fill").foregroundColor(.red)
                     .help("This folder doesn't contain the files MPD has in \(folder.name)")
             case nil:
@@ -255,15 +297,20 @@ struct LibraryFoldersView: View {
 
     private func refreshStatus() {
         var t: [String: String] = [:]
-        var v: [String: Bool] = [:]
+        var st: [String: FolderStatus] = [:]
         for folder in folders {
             if let target = LibraryFolders.target(of: folder.name) {
                 t[folder.name] = target
-                v[folder.name] = LibraryFolders.matches(folder, localPath: target)
+                if !LibraryFolders.matches(folder, localPath: target) {
+                    st[folder.name] = .wrong
+                } else {
+                    let c = LibraryFolders.coverage(folder, localPath: target)
+                    st[folder.name] = c.complete ? .complete : .incomplete(missing: c.missing, total: c.total)
+                }
             }
         }
         targets = t
-        valid = v
+        status = st
         if !t.isEmpty {
             musicPath = LibraryFolders.root
         }
@@ -283,7 +330,7 @@ struct LibraryFoldersView: View {
     }
 
     private func detectAll() {
-        let pending = folders.filter { valid[$0.name] != true }
+        let pending = folders.filter { status[$0.name] != .complete }
         guard !pending.isEmpty else {
             detectMessage = "All folders are already set"
             return

@@ -109,6 +109,11 @@ class MPDClient {
 // MARK: - Parsed helpers
 
 extension MPDClient {
+    func stats() async throws -> [String: String] {
+        let lines = try await send("stats")
+        return parseResponse(lines)
+    }
+
     func status() async throws -> [String: String] {
         let lines = try await send("status")
         return parseResponse(lines)
