@@ -107,6 +107,11 @@ struct PlayerView: View {
                             Label("Load library", systemImage: "arrow.down.circle")
                         }
                         .buttonStyle(.borderedProminent)
+                        if vm.libraryIsEmpty {
+                            Text("MPD's library is empty. Is the music disk mounted on the server?")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
                         Spacer()
                     }
                 }

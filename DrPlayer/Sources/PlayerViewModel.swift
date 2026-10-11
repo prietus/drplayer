@@ -70,6 +70,8 @@ class PlayerViewModel {
     var repeatMode: RepeatMode = .off
     var shuffle = false
     var connected = false
+    /// MPD answered but its database has no albums (e.g. music disk not mounted)
+    var libraryIsEmpty = false
     var error: String? = nil
     var audioFormat = ""
     var elapsed: Double = 0
@@ -333,6 +335,7 @@ class PlayerViewModel {
 
             await MainActor.run {
                 self.albums = grouped
+                self.libraryIsEmpty = grouped.isEmpty
                 self.playlist = Self.parseTracks(pl)
                 self.buildVersionIndex()
             }

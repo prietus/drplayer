@@ -25,9 +25,16 @@ enum LibraryFolders {
     // MARK: MPD
 
     /// Top-level folders of the MPD library, each with one sample file.
+    /// nil when MPD can't be reached; empty when its library is empty
+    /// (e.g. the music disk isn't mounted on the server).
     static func fetchFolders(host: String, port: UInt16) async -> [Folder]? {
         let client = MPDClient(host: host, port: port)
-        guard let lines = try? await client.send("lsinfo"), !lines.isEmpty else { return nil }
+        guard let lines = try? await client.send("lsinfo") else { return nil }
+        if lines.isEmpty {
+            // An empty listing is either an empty library or a dead connection
+            guard let stats = try? await client.stats(), stats["songs"] != nil else { return nil }
+            return []
+        }
         var folders: [Folder] = []
         for dir in lines.compactMap({ value(of: "directory", in: $0) }) {
             if let file = await firstFile(in: dir, client: client, depth: 0) {
@@ -278,6 +285,10 @@ struct LibraryFoldersView: View {
         }
         guard let fetched = await LibraryFolders.fetchFolders(host: host, port: port) else {
             phase = .failed("Could not read folders from MPD at \(host)")
+            return
+        }
+        guard !fetched.isEmpty else {
+            phase = .failed("MPD's library on \(host) is empty. Is the music disk mounted on the server? After mounting it, run an MPD update and press Retry.")
             return
         }
         // Carry over folders already reachable through a previous base path
